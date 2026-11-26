@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ecore:EPackage xmlns:xmi="http://www.omg.org/XMI" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="quality" nsURI="http://music/quality" nsPrefix="qm" xmi:version="2.0">
+  <eClassifiers xsi:type="ecore:EClass" name="QualityModel">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="instrument">
+      <eType href="profile.ecore#//Instrument" xsi:type="ecore:EEnum"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="bindings" eType="#//MetricBinding" upperBound="-1" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="MetricBinding">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="attribute">
+      <eType href="exercise.ecore#//QualityAttribute" xsi:type="ecore:EEnum"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="metric" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="bands" eType="#//Band" upperBound="-1" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Band">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="level">
+      <eType href="exercise.ecore#//Level" xsi:type="ecore:EEnum"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="min" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="max" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+</ecore:EPackage>

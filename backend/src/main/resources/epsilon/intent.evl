@@ -1,0 +1,72 @@
+// Validation of a teaching intent. Model T conforms to http://music/exercise;
+// model L is the learner profile the intent refers to (empty when there is none).
+
+context T!ExerciseSpec {
+
+  critique TempoAboveComfort {
+    guard: self.hasLearner()
+    check: self.requestedBpm <= self.learner.comfortableBpm
+      or (self.maxBpm > 0 and self.maxBpm <= self.learner.comfortableBpm)
+    message: "Il tempo richiesto (" + self.requestedBpm + " bpm) supera il tempo comodo di "
+      + self.learner.name + " (" + self.learner.comfortableBpm + " bpm)"
+    fix {
+      title: "Limita il tempo a " + self.learner.comfortableBpm + " bpm"
+      do {
+        self.maxBpm = self.learner.comfortableBpm;
+      }
+    }
+  }
+}
+
+context T!ContainsPattern {
+
+  constraint ContainsExcludesConflict {
+    guard: self.pattern.isDefined()
+    check: not self.eContainer().constraints.exists(c |
+      c.isTypeOf(T!ExcludesPattern) and c.pattern.isDefined() and c.pattern.samePattern(self.pattern))
+    message: "Il pattern '" + self.pattern.expression + "' è sia richiesto sia escluso"
+  }
+
+  critique PatternNotIntroduced {
+    guard: self.pattern.isDefined() and self.pattern.kind = T!PatternKind#RHYTHM
+      and self.eContainer().hasLearner()
+    check: not self.eContainer().learner.patterns.exists(p |
+      p.status = L!Mastery#NOT_INTRODUCED and normalize(p.expression) = normalize(self.pattern.expression))
+    message: "Il pattern '" + self.pattern.expression + "' non è ancora stato introdotto a "
+      + self.eContainer().learner.name
+  }
+}
+
+context T!QualityGoal {
+
+  critique ComplexityAboveLevel {
+    guard: self.level = T!Level#HIGH and self.eContainer().hasLearner() and self.skillArea().isDefined()
+    check: not self.eContainer().learner.skills.exists(s |
+      s.area = self.skillArea() and s.level <= MAX_LEVEL_FOR_HIGH_WARNING())
+    message: "Obiettivo " + self.attribute + " HIGH, ma la skill " + self.skillArea()
+      + " del learner è di livello basso (≤ " + MAX_LEVEL_FOR_HIGH_WARNING() + ")"
+  }
+}
+
+operation MAX_LEVEL_FOR_HIGH_WARNING() : Integer {
+  return 2;
+}
+
+operation T!ExerciseSpec hasLearner() : Boolean {
+  return self.learner.isDefined() and not self.learner.eIsProxy();
+}
+
+// Skill area that backs a quality attribute, undefined when there is no correspondence.
+operation T!QualityGoal skillArea() : Any {
+  if (self.attribute = T!QualityAttribute#RHYTHMIC_COMPLEXITY) { return L!SkillArea#RHYTHM; }
+  if (self.attribute = T!QualityAttribute#MELODIC_COMPLEXITY) { return L!SkillArea#PITCH_READING; }
+  return null;
+}
+
+operation T!Pattern samePattern(other : T!Pattern) : Boolean {
+  return self.kind = other.kind and normalize(self.expression) = normalize(other.expression);
+}
+
+operation normalize(expression : Any) : String {
+  return rhythm.normalize(expression);
+}

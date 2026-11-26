@@ -1,0 +1,22 @@
+@namespace(uri="http://music/quality", prefix="qm")
+package quality;
+
+import "profile.ecore";
+import "exercise.ecore";
+
+class QualityModel {
+  attr profile.Instrument instrument;
+  val MetricBinding[*] bindings;
+}
+
+class MetricBinding {
+  attr exercise.QualityAttribute attribute;
+  attr String metric;
+  val Band[*] bands;
+}
+
+class Band {
+  attr exercise.Level level;
+  attr double min;
+  attr double max;
+}

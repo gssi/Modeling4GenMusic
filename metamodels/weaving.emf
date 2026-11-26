@@ -1,0 +1,59 @@
+@namespace(uri="http://music/weaving", prefix="wv")
+package weaving;
+
+import "http://www.eclipse.org/emf/2002/Ecore";
+import "profile.ecore";
+import "exercise.ecore";
+import "quality.ecore";
+
+// Collega i modelli di input (profilo, intento della docente, quality model)
+// alla spec derivata: ogni Link traccia da quali elementi nasce un elemento
+// (o un attributo) della spec e con quale regola.
+class DerivationWeaving {
+  attr String name;
+  ref profile.Learner[1] learner;
+  ref exercise.ExerciseSpec teacherIntent;
+  ref quality.QualityModel qualityModel;
+  ref exercise.ExerciseSpec[1] derivedSpec;
+  val Link[*] links;
+}
+
+abstract class Link {
+  attr String rule;            // es. nome della regola ETL
+  attr String rationale;       // spiegazione leggibile (open learner model)
+  attr String targetFeature;   // valorizzato se il link riguarda un solo attributo
+  val SourceEnd[+] sources;
+  ref ecore.EObject[1] target;
+}
+
+class SourceEnd {
+  attr Origin origin;
+  attr String feature;
+  ref ecore.EObject[1] element;
+}
+
+// elemento creato nella spec a partire dalle sorgenti
+class Derivation extends Link {
+}
+
+// elemento della docente copiato e arricchito
+class Refinement extends Link {
+}
+
+// valore corretto da un fix EVL
+class ConflictFix extends Link {
+  attr String critique;
+  attr String originalValue;
+  attr String newValue;
+}
+
+// quality goal risolto su una banda del quality model
+class Resolution extends Link {
+}
+
+enum Origin {
+  PROFILE = 0;
+  TEACHER = 1;
+  QUALITY_MODEL = 2;
+  RULE_DEFAULT = 3;
+}

@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ecore:EPackage xmlns:xmi="http://www.omg.org/XMI" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="profile" nsURI="http://music/profile" nsPrefix="pr" xmi:version="2.0">
+  <eClassifiers xsi:type="ecore:EClass" name="Learner">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" lowerBound="1"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="instrument" eType="#//Instrument"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="comfortableBpm" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="lowestMidi" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="highestMidi" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="skills" eType="#//Skill" upperBound="-1" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="needs" eType="#//Need" upperBound="-1" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="patterns" eType="#//PatternMastery" upperBound="-1" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Skill">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="area" eType="#//SkillArea"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="level" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="confidence" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Need" abstract="true"/>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Need" name="LowVision">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="minStaffScale" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="PatternMastery">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="expression" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="status" eType="#//Mastery"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="Instrument">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="PIANO"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="GUITAR" value="1"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="FLUTE" value="2"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="SkillArea">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="RHYTHM"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="PITCH_READING" value="1"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="TECHNIQUE" value="2"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="Mastery">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="MASTERED"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="LEARNING" value="1"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="NOT_INTRODUCED" value="2"/>
+  </eClassifiers>
+</ecore:EPackage>

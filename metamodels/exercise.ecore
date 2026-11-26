@@ -1,0 +1,64 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ecore:EPackage xmlns:xmi="http://www.omg.org/XMI" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="exercise" nsURI="http://music/exercise" nsPrefix="ex" xmi:version="2.0">
+  <eClassifiers xsi:type="ecore:EClass" name="ExerciseSpec">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="learner">
+      <eType href="profile.ecore#//Learner" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="instrument">
+      <eType href="profile.ecore#//Instrument" xsi:type="ecore:EEnum"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="key" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="meter" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="bars" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="maxBpm" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="requestedBpm" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="constraints" eType="#//Constraint" upperBound="-1" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="qualityGoals" eType="#//QualityGoal" upperBound="-1" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Constraint" abstract="true">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="strength" eType="#//Strength"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="weight" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble" defaultValueLiteral="1.0"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Constraint" name="ContainsPattern">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="pattern" eType="#//Pattern" lowerBound="1" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="minOccurrences" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt" defaultValueLiteral="1"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Constraint" name="ExcludesPattern">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="pattern" eType="#//Pattern" lowerBound="1" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Constraint" name="RangeConstraint">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="lowestMidi" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="highestMidi" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Constraint" name="RenderConstraint">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="staffScale" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Pattern">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="kind" eType="#//PatternKind"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="expression" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="QualityGoal">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="attribute" eType="#//QualityAttribute"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="level" eType="#//Level"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="Strength">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="HARD"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="SOFT" value="1"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="Level">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="LOW"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="MEDIUM" value="1"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="HIGH" value="2"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="PatternKind">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="RHYTHM"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="INTERVAL" value="1"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="HARMONY" value="2"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="QualityAttribute">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="RHYTHMIC_COMPLEXITY"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="MELODIC_COMPLEXITY" value="1"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="DENSITY" value="2"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="LENGTH" value="3"/>
+  </eClassifiers>
+</ecore:EPackage>

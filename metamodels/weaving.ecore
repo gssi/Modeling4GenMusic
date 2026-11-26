@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<ecore:EPackage xmlns:xmi="http://www.omg.org/XMI" xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="weaving" nsURI="http://music/weaving" nsPrefix="wv" xmi:version="2.0">
+  <eClassifiers xsi:type="ecore:EClass" name="DerivationWeaving">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="learner" lowerBound="1">
+      <eType href="profile.ecore#//Learner" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="teacherIntent">
+      <eType href="exercise.ecore#//ExerciseSpec" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="qualityModel">
+      <eType href="quality.ecore#//QualityModel" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="derivedSpec" lowerBound="1">
+      <eType href="exercise.ecore#//ExerciseSpec" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="links" eType="#//Link" upperBound="-1" containment="true"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="Link" abstract="true">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="rule" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="rationale" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="targetFeature" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="sources" eType="#//SourceEnd" lowerBound="1" upperBound="-1" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="target" eType="ecore:EClass http://www.eclipse.org/emf/2002/Ecore#//EObject" lowerBound="1"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" name="SourceEnd">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="origin" eType="#//Origin"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="feature" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="element" eType="ecore:EClass http://www.eclipse.org/emf/2002/Ecore#//EObject" lowerBound="1"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Link" name="Derivation"/>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Link" name="Refinement"/>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Link" name="ConflictFix">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="critique" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="originalValue" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="newValue" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Link" name="Resolution"/>
+  <eClassifiers xsi:type="ecore:EEnum" name="Origin">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="PROFILE"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="TEACHER" value="1"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="QUALITY_MODEL" value="2"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="RULE_DEFAULT" value="3"/>
+  </eClassifiers>
+</ecore:EPackage>

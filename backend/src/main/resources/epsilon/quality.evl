@@ -1,0 +1,34 @@
+// Validation of a quality model. Model Q conforms to http://music/quality.
+
+context Q!Band {
+
+  constraint BandOrder {
+    check: self.min < self.max
+    message: "Banda " + self.level + ": il minimo (" + self.min + ") deve essere minore del massimo ("
+      + self.max + ")"
+  }
+}
+
+context Q!MetricBinding {
+
+  critique BandCoverage {
+    check: self.coversUnitInterval()
+    message: "Le bande di " + self.attribute + " devono coprire [0, 1] senza buchi né sovrapposizioni"
+  }
+}
+
+operation Q!MetricBinding coversUnitInterval() : Boolean {
+  var bands = self.bands.sortBy(b | b.min);
+  if (bands.isEmpty()) { return false; }
+  if (not same(bands.first().min, 0.0) or not same(bands.last().max, 1.0)) { return false; }
+  var i = 1;
+  while (i < bands.size()) {
+    if (not same(bands.at(i).min, bands.at(i - 1).max)) { return false; }
+    i = i + 1;
+  }
+  return true;
+}
+
+operation same(a : Real, b : Real) : Boolean {
+  return (a - b).abs() < 0.000000001;
+}

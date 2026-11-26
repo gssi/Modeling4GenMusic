@@ -1,0 +1,73 @@
+@namespace(uri="http://music/exercise", prefix="ex")
+package exercise;
+
+import "profile.ecore";
+
+class ExerciseSpec {
+  ref profile.Learner learner;
+  attr profile.Instrument instrument;
+  attr String key;
+  attr String meter;
+  attr int bars;
+  attr int maxBpm;
+  attr int requestedBpm;
+  val Constraint[*] constraints;
+  val QualityGoal[*] qualityGoals;
+}
+
+abstract class Constraint {
+  attr Strength strength;
+  attr double weight = "1.0";
+}
+
+class ContainsPattern extends Constraint {
+  val Pattern[1] pattern;
+  attr int minOccurrences = "1";
+}
+
+class ExcludesPattern extends Constraint {
+  val Pattern[1] pattern;
+}
+
+class RangeConstraint extends Constraint {
+  attr int lowestMidi;
+  attr int highestMidi;
+}
+
+class RenderConstraint extends Constraint {
+  attr double staffScale;
+}
+
+class Pattern {
+  attr PatternKind kind;
+  attr String expression;
+}
+
+class QualityGoal {
+  attr QualityAttribute attribute;
+  attr Level level;
+}
+
+enum Strength {
+  HARD = 0;
+  SOFT = 1;
+}
+
+enum Level {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
+}
+
+enum PatternKind {
+  RHYTHM = 0;
+  INTERVAL = 1;
+  HARMONY = 2;
+}
+
+enum QualityAttribute {
+  RHYTHMIC_COMPLEXITY = 0;
+  MELODIC_COMPLEXITY = 1;
+  DENSITY = 2;
+  LENGTH = 3;
+}

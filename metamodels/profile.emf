@@ -1,0 +1,49 @@
+@namespace(uri="http://music/profile", prefix="pr")
+package profile;
+
+class Learner {
+  attr String[1] name;
+  attr Instrument instrument;
+  attr int comfortableBpm;
+  attr int lowestMidi;
+  attr int highestMidi;
+  val Skill[*] skills;
+  val Need[*] needs;
+  val PatternMastery[*] patterns;
+}
+
+class Skill {
+  attr SkillArea area;
+  attr int level;
+  attr double confidence;
+}
+
+abstract class Need {
+}
+
+class LowVision extends Need {
+  attr double minStaffScale;
+}
+
+class PatternMastery {
+  attr String expression;
+  attr Mastery status;
+}
+
+enum Instrument {
+  PIANO = 0;
+  GUITAR = 1;
+  FLUTE = 2;
+}
+
+enum SkillArea {
+  RHYTHM = 0;
+  PITCH_READING = 1;
+  TECHNIQUE = 2;
+}
+
+enum Mastery {
+  MASTERED = 0;
+  LEARNING = 1;
+  NOT_INTRODUCED = 2;
+}

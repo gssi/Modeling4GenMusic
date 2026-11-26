@@ -1,0 +1,23 @@
+[
+  {
+    "metamodel": "http://music/profile",
+    "script": "profile.evl",
+    "model": "L",
+    "tools": { "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool" }
+  },
+  {
+    "metamodel": "http://music/exercise",
+    "exceptRoles": ["derived"],
+    "script": "intent.evl",
+    "model": "T",
+    "tools": { "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool" },
+    "related": [
+      { "alias": "L", "metamodel": "http://music/profile", "reference": "learner" }
+    ]
+  },
+  {
+    "metamodel": "http://music/quality",
+    "script": "quality.evl",
+    "model": "Q"
+  }
+]

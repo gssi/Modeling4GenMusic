@@ -1,0 +1,32 @@
+// Validation of a learner profile. Model L conforms to http://music/profile.
+
+context L!Learner {
+
+  constraint NameRequired {
+    check: self.name.isDefined() and self.name.trim().length() > 0
+    message: "Il nome del learner è obbligatorio"
+  }
+
+  constraint RangeOrdered {
+    check: self.lowestMidi < self.highestMidi
+    message: "L'estensione non è ordinata: la nota più bassa (" + self.lowestMidi
+      + ") deve essere minore della più alta (" + self.highestMidi + ")"
+  }
+}
+
+context L!Skill {
+
+  constraint SkillLevelBounds {
+    check: self.level >= 0 and self.level <= 5 and self.confidence >= 0 and self.confidence <= 1
+    message: "La skill " + self.area + " ha valori fuori scala: livello " + self.level
+      + " (ammesso 0–5), confidenza " + self.confidence + " (ammessa 0–1)"
+  }
+}
+
+context L!PatternMastery {
+
+  constraint PatternSyntax {
+    check: rhythm.isValid(self.expression)
+    message: "Pattern ritmico non valido: " + rhythm.errorOf(self.expression)
+  }
+}
