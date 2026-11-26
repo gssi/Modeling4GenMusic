@@ -62,6 +62,11 @@
     </dependency>
     <dependency>
       <groupId>org.eclipse.epsilon</groupId>
+      <artifactId>org.eclipse.epsilon.etl.engine</artifactId>
+      <version>${epsilon.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.epsilon</groupId>
       <artifactId>org.eclipse.epsilon.emc.emf</artifactId>
       <version>${epsilon.version}</version>
       <exclusions>

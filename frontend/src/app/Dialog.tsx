@@ -8,13 +8,21 @@ interface DialogProps {
   actions?: ReactNode
 }
 
-/** Modal dialog on the native element, which traps focus and restores it when closed. */
+/** Modal dialog on the native element, which traps focus while it is open. */
 export function Dialog({ title, onClose, children, actions }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
     const dialog = ref.current
-    if (dialog && !dialog.open) dialog.showModal()
+    if (!dialog) return
+    // Remember what had the focus, to give it back when the dialog goes away:
+    // keyboard commands keep working where the person left off.
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    if (!dialog.open) dialog.showModal()
+    return () => {
+      if (dialog.open) dialog.close()
+      if (previous?.isConnected) previous.focus()
+    }
   }, [])
 
   return (

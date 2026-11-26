@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canStartConnection, connectableReferences, containerSlots } from './connections'
-import { projectGraph, proxyNodeId } from './graph'
+import { parallelLanes, projectGraph, proxyNodeId } from './graph'
 import { autoLayout, nodeSize, placeNewNode, pushApart } from './layout'
 import { canBeRoot, conformsTo, instantiate } from './metamodel'
 import {
@@ -116,6 +116,34 @@ describe('diagram projection', () => {
       'containment:c1-pattern->p1',
       'containment:intent-constraints->c2',
     ])
+  })
+})
+
+describe('parallel references', () => {
+  it('gives a lane to each reference between the same two nodes', () => {
+    const roots = [
+      {
+        id: 'w',
+        eClass: 'DerivationWeaving',
+        attributes: {},
+        contents: {},
+        references: {
+          teacherIntent: [{ model: 'm', id: 'intent' }],
+          derivedSpec: [{ model: 'm', id: 'intent' }],
+          learner: [{ model: 'p', id: 'giulia' }],
+        },
+      },
+    ]
+    const graph = projectGraph(roots)
+    const lanes = parallelLanes(graph.edges)
+    const byLabel = Object.fromEntries(graph.edges.map((e) => [e.label, lanes[e.id]]))
+    expect(byLabel.teacherIntent).toEqual({ index: 0, count: 2 })
+    expect(byLabel.derivedSpec).toEqual({ index: 1, count: 2 })
+    expect(byLabel.learner).toEqual({ index: 0, count: 1 })
+  })
+
+  it('leaves containments out', () => {
+    expect(parallelLanes(projectGraph(giuliaProfile).edges)).toEqual({})
   })
 })
 

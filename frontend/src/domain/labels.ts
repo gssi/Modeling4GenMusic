@@ -39,3 +39,7 @@ export function roleLabel(nsURI: string, role: string | undefined): string | und
   if (!role) return undefined
   return WORDING[nsURI]?.roles?.find((r) => r.value === role)?.label ?? role
 }
+
+export function roleOptions(nsURI: string): RoleOption[] {
+  return WORDING[nsURI]?.roles ?? []
+}

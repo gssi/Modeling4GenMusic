@@ -1,18 +1,24 @@
 import { create } from 'zustand'
 import { ApiError, api } from '../api/client'
 import type {
+  DerivationResult,
   Diagnostic,
+  GenerationResult,
   MetamodelSummary,
   ModelDocument,
   ModelHeader,
   ModelObject,
   Position,
 } from '../api/types'
+import { type Provenance, findProvenance } from '../domain/provenance'
 import { type ContainerSlot, containerSlots } from '../editor/connections'
 import { type ClassDisplay, projectGraph } from '../editor/graph'
 import { autoLayout, placeNewNode, pushApart } from '../editor/layout'
 import { type Metamodels, canBeRoot, findClass, instantiate } from '../editor/metamodel'
 import { addChild, addRoot, cloneWithNewIds, locate, removeObjects, uniqueId } from '../editor/modelOps'
+
+/** Id of the tab that hosts the derivation view; it is not a model. */
+export const DERIVE_TAB = '@derive'
 
 const HISTORY_LIMIT = 100
 const COALESCE_MS = 1500
@@ -28,6 +34,16 @@ export interface OpenModel {
   /** False until the model has been validated at least once in its current saved state. */
   validated: boolean
   lastEdit?: { key: string; at: number }
+}
+
+export type ViewMode = 'diagram' | 'form'
+
+export interface DerivationState {
+  learnerId: string
+  intentId: string
+  qualityId: string
+  running: boolean
+  result: DerivationResult | null
 }
 
 export interface Notice {
@@ -57,6 +73,24 @@ interface StudioState {
   clipboard: ModelObject | null
   /** Other models read to offer cross-model reference targets. */
   externals: Record<string, ModelDocument>
+  viewMode: Record<string, ViewMode>
+  /** Where the elements of a derived spec come from, by model id. */
+  provenance: Record<string, Provenance>
+  /** Model shown beside the active one, to look at the sources of a derived element. */
+  split: string | null
+  derivation: DerivationState
+  generations: Record<string, GenerationResult>
+  generating: string | null
+
+  setViewMode: (modelId: string, mode: ViewMode) => void
+  setRole: (modelId: string, role: string) => void
+  openDerivation: () => void
+  setDerivationInput: (input: Partial<Pick<DerivationState, 'learnerId' | 'intentId' | 'qualityId'>>) => void
+  derive: () => Promise<void>
+  reloadModel: (id: string) => Promise<void>
+  showSource: (modelId: string, elementId: string) => Promise<void>
+  closeSplit: () => void
+  generate: (modelId: string) => Promise<void>
 
   init: () => Promise<void>
   refreshModels: () => Promise<void>
@@ -175,6 +209,40 @@ export const useStudio = create<StudioState>((set, get) => {
     settlePositions(modelId, slot?.parent.id, position ? { [object.id]: position } : undefined)
   }
 
+  /** Reads a model from the server into a tab, replacing an open copy, without changing the active tab. */
+  const load = async (id: string, selectId?: string) => {
+    try {
+      const [doc, layout] = await Promise.all([api.getModel(id), api.getLayout(id)])
+      const saved = layout.nodes ?? {}
+      const graph = projectGraph(doc.roots)
+      const positions = graph.nodes.some((n) => saved[n.id]) ? saved : await autoLayout(graph)
+      set((state) => ({
+        open: {
+          ...state.open,
+          [id]: {
+            doc,
+            dirty: false,
+            past: [],
+            future: [],
+            selection: selectId ? [selectId] : [],
+            positions,
+            diagnostics: [],
+            validated: false,
+          },
+        },
+        tabs: state.tabs.includes(id) ? state.tabs : [...state.tabs, id],
+      }))
+      settlePositions(id)
+      void get().validate(id)
+      if (doc.role === 'derived') {
+        const provenance = await findProvenance(id, get().models, api.getModel)
+        if (provenance) set((state) => ({ provenance: { ...state.provenance, [id]: provenance } }))
+      }
+    } catch (e) {
+      set({ notice: { kind: 'error', text: message(e) } })
+    }
+  }
+
   return {
     ready: false,
     loadError: null,
@@ -188,6 +256,89 @@ export const useStudio = create<StudioState>((set, get) => {
     pendingPlacement: null,
     clipboard: null,
     externals: {},
+    viewMode: {},
+    provenance: {},
+    split: null,
+    derivation: { learnerId: '', intentId: '', qualityId: '', running: false, result: null },
+    generations: {},
+    generating: null,
+
+    setViewMode: (modelId, mode) => set((state) => ({ viewMode: { ...state.viewMode, [modelId]: mode } })),
+
+    setRole: (modelId, role) =>
+      patch(modelId, (model) => (model.doc.role === role ? {} : { doc: { ...model.doc, role }, dirty: true, validated: false })),
+
+    openDerivation: () =>
+      set((state) => ({
+        tabs: state.tabs.includes(DERIVE_TAB) ? state.tabs : [...state.tabs, DERIVE_TAB],
+        activeId: DERIVE_TAB,
+        split: null,
+      })),
+
+    setDerivationInput: (input) => set((state) => ({ derivation: { ...state.derivation, ...input, result: null } })),
+
+    derive: async () => {
+      const { learnerId, intentId, qualityId } = get().derivation
+      if (!learnerId || !intentId || !qualityId) return
+      const unsaved = [learnerId, intentId, qualityId].find((id) => get().open[id]?.dirty)
+      if (unsaved) {
+        set({ notice: { kind: 'error', text: `Salva «${get().open[unsaved].doc.name}» prima di derivare: la derivazione legge i modelli salvati.` } })
+        return
+      }
+      set((state) => ({ derivation: { ...state.derivation, running: true, result: null } }))
+      try {
+        const result = await api.derive(learnerId, intentId, qualityId)
+        // The derived models were rewritten on disk: drop the copies that may be open.
+        set((state) => {
+          const open = { ...state.open }
+          const provenance = { ...state.provenance }
+          const generations = { ...state.generations }
+          for (const id of [result.derivedSpecModelId, result.weavingModelId]) {
+            delete open[id]
+            delete provenance[id]
+            delete generations[id]
+          }
+          return { open, provenance, generations, externals: {}, derivation: { ...state.derivation, running: false, result } }
+        })
+        await get().refreshModels()
+        await get().openModel(result.derivedSpecModelId)
+      } catch (e) {
+        set((state) => ({
+          derivation: { ...state.derivation, running: false },
+          notice: { kind: 'error', text: `Derivazione non riuscita: ${message(e)}` },
+        }))
+      }
+    },
+
+    reloadModel: async (id) => {
+      if (!get().open[id]) return
+      await load(id, get().open[id].selection[0])
+    },
+
+    showSource: async (modelId, elementId) => {
+      if (!get().open[modelId]) await load(modelId, elementId)
+      if (!get().open[modelId]) return
+      get().select(modelId, [elementId])
+      set((state) => ({ split: modelId === state.activeId ? state.split : modelId }))
+    },
+
+    closeSplit: () => set({ split: null }),
+
+    generate: async (modelId) => {
+      const model = get().open[modelId]
+      if (!model) return
+      if (model.dirty) {
+        set({ notice: { kind: 'error', text: 'Salva la spec prima di generare l’esercizio.' } })
+        return
+      }
+      set({ generating: modelId })
+      try {
+        const result = await api.generate(modelId, get().provenance[modelId]?.inputs.qualityModel)
+        set((state) => ({ generations: { ...state.generations, [modelId]: result }, generating: null }))
+      } catch (e) {
+        set({ generating: null, notice: { kind: 'error', text: `Generazione non riuscita: ${message(e)}` } })
+      }
+    },
 
     init: async () => {
       try {
@@ -246,37 +397,11 @@ export const useStudio = create<StudioState>((set, get) => {
 
     openModel: async (id, selectId) => {
       if (get().open[id]) {
-        set({ activeId: id })
         if (selectId) get().select(id, [selectId])
-        return
+      } else {
+        await load(id, selectId)
       }
-      try {
-        const [doc, layout] = await Promise.all([api.getModel(id), api.getLayout(id)])
-        const saved = layout.nodes ?? {}
-        const graph = projectGraph(doc.roots)
-        const positions = graph.nodes.some((n) => saved[n.id]) ? saved : await autoLayout(graph)
-        set((state) => ({
-          open: {
-            ...state.open,
-            [id]: {
-              doc,
-              dirty: false,
-              past: [],
-              future: [],
-              selection: selectId ? [selectId] : [],
-              positions,
-              diagnostics: [],
-              validated: false,
-            },
-          },
-          tabs: state.tabs.includes(id) ? state.tabs : [...state.tabs, id],
-          activeId: id,
-        }))
-        settlePositions(id)
-        void get().validate(id)
-      } catch (e) {
-        set({ notice: { kind: 'error', text: message(e) } })
-      }
+      if (get().open[id]) set((state) => ({ activeId: id, split: state.split === id ? null : state.split }))
     },
 
     closeTab: (id) =>
@@ -285,10 +410,11 @@ export const useStudio = create<StudioState>((set, get) => {
         const open = { ...state.open }
         delete open[id]
         const activeId = state.activeId === id ? (tabs[tabs.length - 1] ?? null) : state.activeId
-        return { tabs, open, activeId }
+        const split = state.split === id || state.split === activeId ? null : state.split
+        return { tabs, open, activeId, split }
       }),
 
-    activate: (id) => set({ activeId: id }),
+    activate: (id) => set((state) => ({ activeId: id, split: state.split === id ? null : state.split })),
 
     select: (modelId, ids) =>
       patch(modelId, (model) =>
@@ -444,7 +570,7 @@ export const useStudio = create<StudioState>((set, get) => {
         }))
         set((state) => ({
           externals: {},
-          models: state.models.map((m) => (m.id === saved.id ? { ...m, version: saved.version } : m)),
+          models: state.models.map((m) => (m.id === saved.id ? { ...m, version: saved.version, role: saved.role } : m)),
           notice: { kind: 'info', text: `«${saved.name}» salvato.` },
         }))
         await get().validate(modelId)

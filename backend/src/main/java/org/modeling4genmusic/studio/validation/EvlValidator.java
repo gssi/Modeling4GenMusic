@@ -3,7 +3,6 @@ package org.modeling4genmusic.studio.validation;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -12,20 +11,18 @@ import java.util.Set;
 
 import org.eclipse.emf.common.util.URI;
 import org.eclipse.emf.ecore.EObject;
-import org.eclipse.emf.ecore.EPackage;
 import org.eclipse.emf.ecore.EStructuralFeature;
 import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.xmi.XMLResource;
 import org.eclipse.emf.ecore.xmi.impl.XMIResourceImpl;
 import org.eclipse.epsilon.emc.emf.InMemoryEmfModel;
 import org.eclipse.epsilon.eol.exceptions.EolRuntimeException;
-import org.eclipse.epsilon.eol.execute.context.Variable;
 import org.eclipse.epsilon.evl.EvlModule;
 import org.eclipse.epsilon.evl.dom.Constraint;
 import org.eclipse.epsilon.evl.execute.FixInstance;
 import org.eclipse.epsilon.evl.execute.UnsatisfiedConstraint;
+import org.modeling4genmusic.studio.epsilon.Scripts;
 import org.modeling4genmusic.studio.metamodel.MetamodelRegistry;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -38,14 +35,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Component
 public class EvlValidator {
 
-    private static final String FOLDER = "epsilon/";
-
     private final MetamodelRegistry registry;
     private final List<ValidationProfile> profiles;
 
     public EvlValidator(MetamodelRegistry registry, ObjectMapper json) {
         this.registry = registry;
-        try (InputStream in = new ClassPathResource(FOLDER + "validations.json").getInputStream()) {
+        try (InputStream in = Scripts.open("validations.json")) {
             this.profiles = json.readValue(in, new TypeReference<List<ValidationProfile>>() {
             });
         } catch (IOException e) {
@@ -84,25 +79,14 @@ public class EvlValidator {
     private void run(ValidationProfile profile, String modelId, XMLResource resource, List<Finding> findings,
             Set<String> usedIds) {
         EvlModule module = new EvlModule();
-        try {
-            module.parse(script(profile.script()));
-        } catch (Exception e) {
-            throw new IllegalStateException("Cannot parse " + profile.script(), e);
-        }
-        if (!module.getParseProblems().isEmpty()) {
-            throw new IllegalStateException(
-                    "Syntax errors in " + profile.script() + ": " + module.getParseProblems());
-        }
+        Scripts.parse(module, profile.script());
         module.getContext().getModelRepository().addModel(model(profile.model(), resource));
         if (profile.related() != null) {
             for (ValidationProfile.Related related : profile.related()) {
                 module.getContext().getModelRepository().addModel(model(related.alias(), related(resource, related)));
             }
         }
-        if (profile.tools() != null) {
-            profile.tools().forEach((name, className) -> module.getContext().getFrameStack()
-                    .putGlobal(Variable.createReadOnlyVariable(name, tool(className))));
-        }
+        Scripts.publishTools(module, profile.tools());
         Set<UnsatisfiedConstraint> unsatisfied;
         try {
             unsatisfied = module.execute();
@@ -143,9 +127,7 @@ public class EvlValidator {
     }
 
     private InMemoryEmfModel model(String name, Resource resource) {
-        List<EPackage> packages = new ArrayList<>(registry.packages());
-        // expand=false: the model covers this resource only, not the other ones of its resource set.
-        return new InMemoryEmfModel(name, resource, packages, false, false);
+        return Scripts.model(name, resource, registry.packages());
     }
 
     /** Resource reached from the roots through the given reference, or an empty one when there is none. */
@@ -162,23 +144,5 @@ public class EvlValidator {
             }
         }
         return new XMIResourceImpl(URI.createURI("empty:" + related.alias()));
-    }
-
-    /** Helper objects are plain instances handed to the script: they are looked up by the application class loader. */
-    private static Object tool(String className) {
-        try {
-            return Class.forName(className, true, EvlValidator.class.getClassLoader()).getDeclaredConstructor()
-                    .newInstance();
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Cannot create the validation tool " + className, e);
-        }
-    }
-
-    private static String script(String name) {
-        try (InputStream in = new ClassPathResource(FOLDER + name).getInputStream()) {
-            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot read validation script " + name, e);
-        }
     }
 }

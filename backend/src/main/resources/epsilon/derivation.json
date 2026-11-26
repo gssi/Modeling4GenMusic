@@ -1,0 +1,16 @@
+{
+  "script": "derive.etl",
+  "inputs": [
+    { "alias": "L", "metamodel": "http://music/profile", "parameter": "learnerModelId", "validated": true },
+    { "alias": "T", "metamodel": "http://music/exercise", "parameter": "teacherIntentModelId", "primary": true, "validated": true },
+    { "alias": "Q", "metamodel": "http://music/quality", "parameter": "qualityModelId" }
+  ],
+  "outputs": [
+    { "alias": "S", "metamodel": "http://music/exercise", "idSuffix": "derived", "name": "Spec derivata da %s", "role": "derived", "result": "derivedSpecModelId" },
+    { "alias": "W", "metamodel": "http://music/weaving", "idSuffix": "weaving", "name": "Traccia di %s", "result": "weavingModelId", "validated": true }
+  ],
+  "tools": {
+    "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool",
+    "ids": "org.modeling4genmusic.studio.derivation.ElementIdTool"
+  }
+}

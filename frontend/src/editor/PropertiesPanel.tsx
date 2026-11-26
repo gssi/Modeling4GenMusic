@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { type ReactNode, useEffect, useId, useMemo, useState } from 'react'
 import type {
   AttributeDescriptor,
   AttributeValue,
@@ -238,7 +238,13 @@ function ReferenceField(props: {
   )
 }
 
-export function PropertiesPanel({ modelId }: { modelId: string }) {
+interface PropertiesPanelProps {
+  modelId: string
+  /** Extra content shown under the fields of the selected element. */
+  extra?: (elementId: string) => ReactNode
+}
+
+export function PropertiesPanel({ modelId, extra }: PropertiesPanelProps) {
   const model = useStudio((s) => s.open[modelId])
   const metamodels = useStudio((s) => s.metamodels)
   const externals = useStudio((s) => s.externals)
@@ -340,6 +346,7 @@ export function PropertiesPanel({ modelId }: { modelId: string }) {
           candidates={candidatesOf(reference)}
         />
       ))}
+      {extra?.(object.id)}
     </aside>
   )
 }

@@ -2,18 +2,21 @@ import {
   Background,
   BackgroundVariant,
   type Connection,
+  type FinalConnectionState,
   type NodeChangeset,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
 } from '@xyflow/react'
+import { toPng, toSvg } from 'html-to-image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { api } from '../api/client'
 import type { ReferenceDescriptor } from '../api/types'
 import { Dialog } from '../app/Dialog'
 import { classDisplay, useStudio } from '../app/store'
 import { metamodelColor } from '../app/theme'
 import { canStartConnection, connectableReferences } from './connections'
-import { projectGraph } from './graph'
+import { parallelLanes, projectGraph } from './graph'
 import { nodeSize } from './layout'
 import { EdgeMarkers, ModelEdge, type ModelFlowEdge } from './ModelEdge'
 import { CanvasContext } from './canvasContext'
@@ -23,7 +26,8 @@ import { PALETTE_MIME } from './Palette'
 
 const nodeTypes = { model: ModelNode }
 const edgeTypes = { model: ModelEdge }
-const FIT = { padding: '32px', maxZoom: 1, duration: 0 } as const
+// Fitting never shrinks below a readable size: a larger diagram is panned instead.
+const FIT = { padding: '32px', minZoom: 0.7, maxZoom: 1, duration: 0 } as const
 
 interface PendingLink {
   sourceId: string
@@ -31,7 +35,19 @@ interface PendingLink {
   references: ReferenceDescriptor[]
 }
 
-function CanvasInner({ modelId }: { modelId: string }) {
+/** Optional colouring of elements, supplied by whoever knows what the colours mean. */
+export interface Decoration {
+  /** CSS suffix for the whole node (`is-tint-…`) and for single attribute rows. */
+  tints: (elementId: string) => { node?: string; attributes: Record<string, string> }
+  legend: { tint: string; label: string }[]
+}
+
+interface CanvasProps {
+  modelId: string
+  decoration?: Decoration
+}
+
+function CanvasInner({ modelId, decoration }: CanvasProps) {
   const model = useStudio((s) => s.open[modelId])
   const metamodels = useStudio((s) => s.metamodels)
   const summaries = useStudio((s) => s.summaries)
@@ -66,6 +82,7 @@ function CanvasInner({ modelId }: { modelId: string }) {
     setNodes(
       graph.nodes.map((node) => {
         const located = node.kind === 'object' ? locate(doc.roots, node.id) : undefined
+        const tints = decoration && node.kind === 'object' ? decoration.tints(node.id) : undefined
         return {
           id: node.id,
           type: 'model' as const,
@@ -79,15 +96,17 @@ function CanvasInner({ modelId }: { modelId: string }) {
             errors: counts.get(node.id)?.errors ?? 0,
             warnings: counts.get(node.id)?.warnings ?? 0,
             canLink: !!located && canStartConnection(metamodels, nsURI, doc.roots, located.object),
+            tint: tints?.node,
+            rowTints: tints ? node.rowNames.map((name) => tints.attributes[name]) : undefined,
           },
         }
       }),
     )
-  }, [graph, positions, selection, diagnostics, dirty, doc.roots, metamodels, nsURI, color])
+  }, [graph, positions, selection, diagnostics, dirty, doc.roots, metamodels, nsURI, color, decoration])
 
-  const edges = useMemo<ModelFlowEdge[]>(
-    () =>
-      graph.edges.map((edge) => {
+  const edges = useMemo<ModelFlowEdge[]>(() => {
+    const lanes = parallelLanes(graph.edges)
+    return graph.edges.map((edge) => {
                 const target = graph.nodes.find((n) => n.id === edge.target)
         return {
           id: edge.id,
@@ -110,13 +129,14 @@ function CanvasInner({ modelId }: { modelId: string }) {
                 : edge.kind === 'external'
                   ? { model: target?.externalModel, id: target?.externalId ?? '' }
                   : undefined,
+            lane: lanes[edge.id]?.index ?? 0,
+            lanes: lanes[edge.id]?.count ?? 1,
             emphasis: hoveredEdge === null ? ('normal' as const) : hoveredEdge === edge.id ? ('hot' as const) : ('dim' as const),
             onHover: setHoveredEdge,
           },
         }
-      }),
-    [graph, hoveredEdge, selectedEdge],
-  )
+      })
+  }, [graph, hoveredEdge, selectedEdge])
 
   const onNodesChange = useCallback(
     (changes: NodeChangeset<ModelFlowNode>) => {
@@ -141,10 +161,10 @@ function CanvasInner({ modelId }: { modelId: string }) {
     [doc.roots, metamodels, nsURI],
   )
 
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      const source = locate(doc.roots, connection.source)
-      const target = locate(doc.roots, connection.target)
+  const link = useCallback(
+    (sourceId: string, targetId: string) => {
+      const source = locate(doc.roots, sourceId)
+      const target = locate(doc.roots, targetId)
       if (!source || !target) return
       const references = connectableReferences(metamodels, nsURI, source.object, target.object)
       if (references.length === 1) {
@@ -154,6 +174,20 @@ function CanvasInner({ modelId }: { modelId: string }) {
       }
     },
     [doc.roots, metamodels, nsURI, modelId, mutate],
+  )
+
+  const onConnect = useCallback((connection: Connection) => link(connection.source, connection.target), [link])
+
+  // A link can be dropped anywhere on an object, not only on its attachment point.
+  const onConnectEnd = useCallback(
+    (event: MouseEvent | TouchEvent, state: FinalConnectionState) => {
+      if (state.isValid || !state.fromNode) return
+      const point = 'changedTouches' in event ? event.changedTouches[0] : event
+      const dropped = document.elementFromPoint(point.clientX, point.clientY)?.closest<HTMLElement>('.react-flow__node')
+      const targetId = dropped?.dataset.id
+      if (targetId && targetId !== state.fromNode.id && wrapper.current?.contains(dropped)) link(state.fromNode.id, targetId)
+    },
+    [link],
   )
 
   const fit = useCallback(() => {
@@ -249,6 +283,35 @@ function CanvasInner({ modelId }: { modelId: string }) {
     requestAdd(modelId, className, position, under?.dataset.id)
   }
 
+  const download = (href: string, fileName: string) => {
+    const link = document.createElement('a')
+    link.href = href
+    link.download = fileName
+    link.click()
+  }
+
+  const exportImage = async (format: 'png' | 'svg') => {
+    const element = wrapper.current
+    if (!element) return
+    const options = {
+      backgroundColor: '#ffffff',
+      pixelRatio: 2,
+      filter: (node: HTMLElement) => !node.classList?.contains('react-flow__attribution') && !node.classList?.contains('canvas-empty'),
+    }
+    try {
+      download(await (format === 'png' ? toPng(element, options) : toSvg(element, options)), `${modelId}.${format}`)
+    } catch {
+      useStudio.getState().notify({ kind: 'error', text: 'Non sono riuscito a creare l’immagine del diagramma.' })
+    }
+  }
+
+  const exportJson = () => {
+    const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' })
+    const href = URL.createObjectURL(blob)
+    download(href, `${modelId}.json`)
+    setTimeout(() => URL.revokeObjectURL(href), 1000)
+  }
+
   const actions = useMemo(
     () => ({ canConnect, openExternal: (external: string, id: string) => void openModel(external, id) }),
     [canConnect, openModel],
@@ -282,6 +345,23 @@ function CanvasInner({ modelId }: { modelId: string }) {
         >
           Riordina
         </button>
+        <details className="menu">
+          <summary>Esporta</summary>
+          <div className="menu-items">
+            <a href={api.xmiUrl(modelId)} download={`${modelId}.xmi`} title={model.dirty ? 'Scarica l’ultima versione salvata' : undefined}>
+              Modello XMI
+            </a>
+            <button type="button" onClick={exportJson}>
+              Modello JSON
+            </button>
+            <button type="button" onClick={() => void exportImage('png')}>
+              Immagine PNG
+            </button>
+            <button type="button" onClick={() => void exportImage('svg')}>
+              Immagine SVG
+            </button>
+          </div>
+        </details>
         <span className="toolbar-spacer" />
         <button type="button" aria-label="Riduci" onClick={() => { autoFit.current = false; void flow.zoomOut() }}>
           −
@@ -316,6 +396,7 @@ function CanvasInner({ modelId }: { modelId: string }) {
               setPositions(modelId, Object.fromEntries(dragged.map((n) => [n.id, n.position])))
             }
             onConnect={onConnect}
+            onConnectEnd={onConnectEnd}
             isValidConnection={(c) => canConnect(c.source, c.target)}
             onEdgeClick={(_, edge) => setSelectedEdge(edge.selectable === false ? null : edge.id)}
             onEdgeMouseEnter={(_, edge) => setHoveredEdge(edge.id)}
@@ -341,6 +422,15 @@ function CanvasInner({ modelId }: { modelId: string }) {
             <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="#d3d8e0" />
           </ReactFlow>
         </CanvasContext.Provider>
+        {decoration && (
+          <ul className="canvas-legend" aria-label="Legenda dei colori">
+            {decoration.legend.map((entry) => (
+              <li key={entry.tint}>
+                <span className={`legend-swatch is-tint-${entry.tint}`} aria-hidden="true" /> {entry.label}
+              </li>
+            ))}
+          </ul>
+        )}
         {graph.nodes.length === 0 && (
           <p className="canvas-empty">Il modello è vuoto. Scegli un elemento dall’elenco a sinistra per iniziare.</p>
         )}
@@ -400,10 +490,10 @@ function CanvasInner({ modelId }: { modelId: string }) {
   )
 }
 
-export function Canvas({ modelId }: { modelId: string }) {
+export function Canvas(props: CanvasProps) {
   return (
     <ReactFlowProvider>
-      <CanvasInner modelId={modelId} />
+      <CanvasInner {...props} />
     </ReactFlowProvider>
   )
 }

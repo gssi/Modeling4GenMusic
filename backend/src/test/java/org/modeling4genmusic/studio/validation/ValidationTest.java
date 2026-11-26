@@ -329,4 +329,20 @@ class ValidationTest {
         assertThat(dangling.message()).contains("'learner'").contains(profile);
         assertThat(names(diagnostics)).containsExactly("UnresolvedReference");
     }
+
+    // ---------------------------------------------------------------- weaving.evl
+
+    @Test
+    void handWrittenTraceWithoutLinksGetsWarningsInsteadOfTheCompletenessError() {
+        String intentId = save(EXERCISE, "Trace intent", "intent", intent(null, 60, 0, List.of(), List.of()));
+        Ref intent = new Ref(intentId, "intent", null);
+        ObjectNode weaving = node("w", "DerivationWeaving", Map.of("name", "test"), null,
+                Map.of("teacherIntent", List.of(intent), "derivedSpec", List.of(intent)));
+        String id = save("http://music/weaving", "Hand trace", null, weaving);
+
+        List<Diagnostic> diagnostics = service.validate(WS, id);
+        assertThat(names(diagnostics)).contains("TraceWithoutLinks", "DerivedSpecIsTheIntent")
+                .doesNotContain("DerivedElementTraced");
+        assertThat(only(diagnostics, "TraceWithoutLinks").severity()).isEqualTo(Diagnostic.Severity.WARNING);
+    }
 }

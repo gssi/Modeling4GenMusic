@@ -2,6 +2,78 @@
 
 Una nota per milestone. Le modifiche ai metamodelli vanno segnalate qui.
 
+## Rifiniture dopo M6
+
+- Riferimenti paralleli tra gli stessi due elementi disegnati su corsie separate, ognuno con la
+  propria etichetta.
+- Un collegamento trascinato si può rilasciare in qualunque punto dell'oggetto di destinazione.
+- Dopo la chiusura di una finestra di dialogo il fuoco torna dov'era, così i comandi da tastiera
+  del diagramma continuano a funzionare.
+- Il diagramma adattato al riquadro non scende sotto una dimensione leggibile: se è più grande
+  si scorre.
+- Il tipo di un modello (intento o specifica derivata) si può cambiare dalla barra del modello,
+  utile dopo un'importazione.
+- `weaving.evl`: una traccia senza collegamenti riceve l'avviso `TraceWithoutLinks` al posto
+  dell'errore di completezza, che resta per le tracce con almeno un link; nuovo avviso
+  `DerivedSpecIsTheIntent`.
+- Rapporto dell'esercizio: nuova osservazione non bloccante `barLength` sulle battute la cui
+  durata non corrisponde al metro. Sull'ABC di esempio segnala le battute 2, 4, 6 e 7.
+- nginx accetta intestazioni di richiesta fino a 64 KB, come il backend.
+- Test end-to-end esteso a connessioni trascinate, copia e incolla, eliminazione con conferma,
+  annulla e ripeti.
+
+## M6 — Export e generazione di esempio
+
+- Dal diagramma: export del modello in XMI e JSON e dell'immagine in PNG e SVG.
+- Backend: interfacce `ExerciseGenerator`, `ExerciseValidator`, `MetricCalculator` e
+  `POST /api/generations`. `MockExerciseGenerator` restituisce l'ABC di esempio;
+  `BasicExerciseValidator` controlla estensione, occorrenze dei pattern richiesti ed esclusi e
+  numero di battute. Le metriche `rhythmScore` e `melodicScore` non sono implementate.
+- Vista «Esercizio» della specifica derivata: partitura con abcjs, ingrandita secondo il
+  `RenderConstraint`, e rapporto dei controlli.
+
+Note:
+
+- L'ABC di esempio del brief ha quattro battute (2, 4, 6, 7) che durano 3/4 invece di 4/4. È
+  rimasto identico; il validatore conta le battute e non ne controlla la durata.
+- Ogni controllo del rapporto ha un campo `blocking`: i vincoli SOFT e i pattern non ritmici non
+  rendono l'esercizio non valido.
+
+## M5 — Viste low-code
+
+- Selettore «Diagramma / Scheda» per modello; le due viste leggono e scrivono lo stesso modello.
+- Scheda dell'allievo, costruttore di intento, tabella del modello di qualità con avviso su bande
+  sovrapposte o che non coprono l'intervallo da 0 a 1.
+- Editor di pattern ritmico con validazione mentre si scrive e anteprima in notazione. Il parser
+  TypeScript (`frontend/src/domain/rhythm.ts`) accetta la stessa grammatica di quello Java.
+- Test end-to-end Playwright: profilo dalla scheda, derivazione, colori di provenienza,
+  confronto con le sorgenti, export, esercizio generato.
+
+## M4 — Derivazione e provenienza
+
+- `derive.etl` con le dieci regole del brief; ogni elemento o attributo della specifica derivata
+  ha un `Link` nel modello di weaving con regola e motivazione.
+- `POST /api/derivations` produce `{intento}.derived` e `{intento}.weaving`; una nuova derivazione
+  li sovrascrive. Se profilo o intento hanno errori risponde 422.
+- `weaving.evl` con `DerivedElementTraced`.
+- Vista di derivazione con scelta dei tre modelli, controlli sull'intento e correzioni da applicare
+  o lasciare; specifica derivata colorata per provenienza (blu docente, verde profilo o regole);
+  pannello che spiega l'elemento selezionato e apre le sorgenti accanto; log di derivazione;
+  schema del processo.
+
+Scostamenti dal brief:
+
+- `TempoLimit` limita sempre il tempo a quello comodo e lo registra come `ConflictFix`; senza
+  tempo richiesto usa il tempo comodo.
+- `CopyIntent` produce un `Refinement` per attributo, e copia anche `requestedBpm`.
+- Regole in più, con nome `CopyTeacherConstraints`: copiano i vincoli di esclusione, estensione e
+  resa scritti dalla docente, che altrimenti andrebbero persi.
+- `ExcludeNotIntroduced` non esclude un pattern che la docente richiede esplicitamente: resta
+  l'avviso `PatternNotIntroduced` sull'intento.
+- `DerivedElementTraced` è un solo vincolo sulla radice del weaving, che elenca gli elementi non
+  tracciati.
+- Nello schema del processo le fasi 2–5 sono segnaposto senza nome.
+
 ## M3 — Riferimenti tra modelli, validazione, correzioni
 
 - Validazione strutturale con il `Diagnostician` di EMF (molteplicità, valori, riferimenti non
@@ -24,7 +96,6 @@ Scostamenti dal brief:
 - Le regole dell'intento che dipendono dal learner non scattano se il riferimento manca o non si
   risolve: in quel caso resta l'errore strutturale.
 - `ContainsExcludesConflict` e `PatternNotIntroduced` confrontano le espressioni a meno degli spazi.
-- `weaving.evl` arriva con M4.
 
 ## M2 — Editor grafico generico
 

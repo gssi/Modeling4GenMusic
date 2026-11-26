@@ -10,18 +10,21 @@ export interface ModelNodeData extends Record<string, unknown> {
   warnings: number
   /** Whether a reference can still be drawn from this object. */
   canLink: boolean
+  /** Provenance colouring of the whole node and of single rows, when the model has one. */
+  tint?: string
+  rowTints?: (string | undefined)[]
 }
 
 export type ModelFlowNode = Node<ModelNodeData, 'model'>
 
-/** Vertical position of the reference attachment points: the middle of the header. */
-const REF_PORT = 18
+/** Vertical position of the reference attachment points: in the header, above the containment one. */
+const REF_PORT = 11
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 /** An object in UML notation: underlined `id : Class` header and a compartment of `name = value` rows. */
 export function ModelNode({ id, data, selected }: NodeProps<ModelFlowNode>) {
-  const { graphNode, color, errors, warnings, canLink } = data
+  const { graphNode, color, errors, warnings, canLink, tint, rowTints } = data
   const connection = useConnection()
   const actions = useContext(CanvasContext)
   const isProxy = graphNode.kind === 'proxy'
@@ -50,7 +53,7 @@ export function ModelNode({ id, data, selected }: NodeProps<ModelFlowNode>) {
 
   return (
     <div
-      className={`model-node${selected ? ' is-selected' : ''}${state}`}
+      className={`model-node${selected ? ' is-selected' : ''}${state}${tint ? ` is-tint-${tint}` : ''}`}
       style={{ '--mm': color } as CSSProperties}
     >
       {/* Containments and references use separate attachment points, so their connectors never share a stretch. */}
@@ -61,8 +64,10 @@ export function ModelNode({ id, data, selected }: NodeProps<ModelFlowNode>) {
       </div>
       {graphNode.rows.length > 0 && (
         <ul className="model-node-rows">
-          {graphNode.rows.map((row) => (
-            <li key={row}>{row}</li>
+          {graphNode.rows.map((row, index) => (
+            <li key={row} className={rowTints?.[index] ? `is-tint-${rowTints[index]}` : undefined}>
+              {row}
+            </li>
           ))}
         </ul>
       )}

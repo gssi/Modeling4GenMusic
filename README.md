@@ -15,9 +15,9 @@ delle proprietà e regole di connessione, senza cablare classi del dominio.
 | M1 | Registro dei metamodelli, JSON ↔ EMF, persistenza XMI, API | fatto |
 | M2 | Editor grafico generico | fatto |
 | M3 | Riferimenti tra modelli, validazione EMF ed EVL, correzioni | fatto |
-| M4 | Derivazione ETL, weaving, vista di provenienza | da fare |
-| M5 | Viste low-code ed editor di pattern ritmici | da fare |
-| M6 | Export e stub di generazione | da fare |
+| M4 | Derivazione ETL, weaving, vista di provenienza | fatto |
+| M5 | Viste low-code ed editor di pattern ritmici | fatto |
+| M6 | Export e stub di generazione | fatto |
 
 Le note per milestone sono in [docs/CHANGELOG.md](docs/CHANGELOG.md), le scelte di architettura in
 [docs/adr/](docs/adr/).
@@ -56,7 +56,11 @@ Verifiche:
 ```
 cd backend && mvn verify
 cd frontend && npm run lint && npm test && npm run build
+cd frontend && npx playwright install chromium && npm run e2e
 ```
+
+Il test end-to-end avvia da solo backend (porta 8090) e frontend (porta 5174) su un workspace
+temporaneo, quindi non tocca i modelli di `workspace/`.
 
 ## Modelli sul disco
 
@@ -65,5 +69,16 @@ Ogni modello `id` di un workspace è fatto di tre file in `workspace/<workspace>
 - `id.xmi`: il modello, con `xmi:id` stabili; i riferimenti ad altri modelli sono href relativi;
 - `id.meta.json`: nome, metamodello, versione (lock ottimistico) e ruolo;
 - `id.layout.json`: posizioni dei nodi nel diagramma.
+
+## Dal profilo all'esercizio
+
+1. Crea o importa un profilo, un intento didattico e un modello di qualità. Ogni modello si
+   modifica come diagramma oppure, con il selettore «Scheda», come modulo.
+2. «Deriva un esercizio» fa scegliere i tre modelli, mostra i controlli sull'intento con le
+   correzioni proposte e produce la specifica dell'esercizio e la traccia di derivazione.
+3. Nella specifica derivata il blu indica ciò che ha chiesto la docente, il verde ciò che viene
+   dal profilo o dalle regole; selezionando un elemento si legge il perché e si aprono le sorgenti.
+4. La vista «Esercizio» della specifica chiede un esercizio e lo controlla. La generazione
+   musicale non è ancora collegata: risponde un generatore di esempio.
 
 Per caricare l'esempio, importa dall'editor i tre file di `fixtures/giulia/` con «Importa XMI».

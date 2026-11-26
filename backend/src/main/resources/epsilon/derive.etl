@@ -1,0 +1,355 @@
+// Derivation of a complete exercise spec from the learner profile (L), the teaching intent (T)
+// and the quality model (Q). It writes the spec (S) and a weaving model (W): every element or
+// attribute created in S gets a Link in W with the rule that produced it and a readable rationale.
+//
+// Rules that create elements are transformation rules; rules that only set attributes of the spec,
+// or only add links, are named `post` blocks. They run in the order of this file.
+
+// ---------------------------------------------------------------- thresholds
+
+// Occurrences required for a pattern the learner is still learning.
+operation LEARNING_MIN_OCCURRENCES() : Integer { return 3; }
+
+// Occurrences required for a pattern already mastered, or unknown to the profile.
+operation DEFAULT_MIN_OCCURRENCES() : Integer { return 1; }
+
+// Quality attributes that get a LOW goal when the teacher does not mention them.
+operation FOCUS_DIMENSIONS() : Sequence {
+  return Sequence{T!QualityAttribute#RHYTHMIC_COMPLEXITY, T!QualityAttribute#MELODIC_COMPLEXITY};
+}
+
+// ---------------------------------------------------------------- setup
+
+pre {
+  if (L!Learner.all.isEmpty()) { throw "il profilo non contiene un learner"; }
+  if (T!ExerciseSpec.all.isEmpty()) { throw "l'intento non contiene una specifica di esercizio"; }
+
+  var weaving = new W!DerivationWeaving;
+  ids.exact(weaving, "weaving");
+  weaving.name = learner().name;
+  weaving.learner = learner();
+  weaving.teacherIntent = intent();
+  weaving.qualityModel = Q!QualityModel.all.first();
+}
+
+// ---------------------------------------------------------------- rules that create elements
+
+// 1. The spec starts as a copy of what the teacher asked for.
+rule CopyIntent
+  transform t : T!ExerciseSpec
+  to s : S!ExerciseSpec {
+
+  guard: t = intent()
+
+  ids.exact(s, "spec");
+  weaving().derivedSpec = s;
+
+  s.key = t.key;
+  refinement("CopyIntent", s, "key", "Tonalità scelta dalla docente").from(W!Origin#TEACHER, t, "key");
+  s.meter = t.meter;
+  refinement("CopyIntent", s, "meter", "Metro scelto dalla docente").from(W!Origin#TEACHER, t, "meter");
+  s.bars = t.bars;
+  refinement("CopyIntent", s, "bars", "Numero di battute scelto dalla docente").from(W!Origin#TEACHER, t, "bars");
+  if (t.requestedBpm > 0) {
+    s.requestedBpm = t.requestedBpm;
+    refinement("CopyIntent", s, "requestedBpm", "Tempo richiesto dalla docente")
+      .from(W!Origin#TEACHER, t, "requestedBpm");
+  }
+}
+
+// 4. A requested pattern is weighted by how well the learner knows it.
+rule StrengthenLearningPattern
+  transform c : T!ContainsPattern
+  to d : S!ContainsPattern, p : S!Pattern {
+
+  guard: c.eContainer() = intent() and c.pattern.isDefined()
+
+  ids.numbered(d, "c_contains");
+  ids.exact(p, ids.of(d) + "_pattern");
+  p.kind = c.pattern.kind;
+  p.expression = c.pattern.expression;
+  d.pattern = p;
+  d.weight = c.weight;
+
+  var mastery = c.pattern.masteryInProfile();
+  var rationale;
+  if (mastery.isDefined() and mastery.status = L!Mastery#LEARNING) {
+    d.strength = S!Strength#HARD;
+    d.minOccurrences = LEARNING_MIN_OCCURRENCES();
+    rationale = "Il pattern '" + p.expression + "' è in fase di apprendimento: diventa obbligatorio, con almeno "
+      + LEARNING_MIN_OCCURRENCES() + " occorrenze";
+  } else if (mastery.isDefined() and mastery.status = L!Mastery#MASTERED) {
+    d.strength = S!Strength#SOFT;
+    d.minOccurrences = DEFAULT_MIN_OCCURRENCES();
+    rationale = "Il pattern '" + p.expression + "' è già padroneggiato: resta una preferenza";
+  } else {
+    d.strength = S!Strength#HARD;
+    d.minOccurrences = DEFAULT_MIN_OCCURRENCES();
+    rationale = "Il pattern '" + p.expression + "' non risulta padroneggiato nel profilo: resta obbligatorio come richiesto";
+  }
+
+  var link = refinement("StrengthenLearningPattern", d, null, rationale).from(W!Origin#TEACHER, c, null);
+  if (mastery.isDefined()) { link.from(W!Origin#PROFILE, mastery, "status"); }
+  refinement("StrengthenLearningPattern", p, null, "Pattern richiesto dalla docente")
+    .from(W!Origin#TEACHER, c.pattern, null);
+
+  spec().constraints.add(d);
+}
+
+// Constraints of other kinds written by the teacher are kept as they are.
+// (Not in the original rule table: without these rules they would be lost.)
+rule CopyTeacherExclusion
+  transform c : T!ExcludesPattern
+  to d : S!ExcludesPattern, p : S!Pattern {
+
+  guard: c.eContainer() = intent() and c.pattern.isDefined()
+
+  ids.numbered(d, "c_excludes");
+  ids.exact(p, ids.of(d) + "_pattern");
+  p.kind = c.pattern.kind;
+  p.expression = c.pattern.expression;
+  d.pattern = p;
+  d.copyBasics(c);
+  refinement("CopyTeacherConstraints", d, null, "Esclusione scritta dalla docente").from(W!Origin#TEACHER, c, null);
+  refinement("CopyTeacherConstraints", p, null, "Pattern escluso dalla docente").from(W!Origin#TEACHER, c.pattern, null);
+  spec().constraints.add(d);
+}
+
+rule CopyTeacherRange
+  transform c : T!RangeConstraint
+  to d : S!RangeConstraint {
+
+  guard: c.eContainer() = intent()
+
+  ids.numbered(d, "c_range");
+  d.lowestMidi = c.lowestMidi;
+  d.highestMidi = c.highestMidi;
+  d.copyBasics(c);
+  refinement("CopyTeacherConstraints", d, null, "Estensione scritta dalla docente").from(W!Origin#TEACHER, c, null);
+  spec().constraints.add(d);
+}
+
+rule CopyTeacherRender
+  transform c : T!RenderConstraint
+  to d : S!RenderConstraint {
+
+  guard: c.eContainer() = intent()
+
+  ids.numbered(d, "c_render");
+  d.staffScale = c.staffScale;
+  d.copyBasics(c);
+  refinement("CopyTeacherConstraints", d, null, "Resa grafica scritta dalla docente").from(W!Origin#TEACHER, c, null);
+  spec().constraints.add(d);
+}
+
+// 5. Patterns the learner has not met yet are kept out, unless the teacher asks for them explicitly.
+rule ExcludeNotIntroduced
+  transform m : L!PatternMastery
+  to d : S!ExcludesPattern, p : S!Pattern {
+
+  guard: m.eContainer() = learner() and m.status = L!Mastery#NOT_INTRODUCED and not m.isRequestedByTeacher()
+
+  ids.numbered(d, "c_excludes");
+  ids.exact(p, ids.of(d) + "_pattern");
+  p.kind = S!PatternKind#RHYTHM;
+  p.expression = m.expression;
+  d.pattern = p;
+  d.strength = S!Strength#HARD;
+
+  derivation("ExcludeNotIntroduced", d, null,
+    "Il pattern '" + m.expression + "' non è ancora stato introdotto a " + learner().name + ": viene escluso")
+    .from(W!Origin#PROFILE, m, "status");
+  derivation("ExcludeNotIntroduced", p, null, "Pattern preso dal profilo")
+    .from(W!Origin#PROFILE, m, "expression");
+  spec().constraints.add(d);
+}
+
+// 6. Notes stay within what the learner can play.
+rule RangeFromLearner
+  transform l : L!Learner
+  to d : S!RangeConstraint {
+
+  guard: l = learner()
+
+  ids.numbered(d, "c_range");
+  d.strength = S!Strength#HARD;
+  d.lowestMidi = l.lowestMidi;
+  d.highestMidi = l.highestMidi;
+
+  derivation("RangeFromLearner", d, null,
+    "Estensione di " + l.name + ": dalla nota MIDI " + l.lowestMidi + " alla " + l.highestMidi)
+    .from(W!Origin#PROFILE, l, "lowestMidi")
+    .from(W!Origin#PROFILE, l, "highestMidi");
+  spec().constraints.add(d);
+}
+
+// 7. A learner with low vision gets a larger staff.
+rule RenderForLowVision
+  transform n : L!LowVision
+  to d : S!RenderConstraint {
+
+  guard: n.eContainer() = learner()
+
+  ids.numbered(d, "c_render");
+  d.strength = S!Strength#HARD;
+  d.staffScale = n.minStaffScale;
+
+  derivation("RenderForLowVision", d, null,
+    "Ipovisione: il pentagramma va ingrandito almeno di " + n.minStaffScale + " volte")
+    .from(W!Origin#PROFILE, n, "minStaffScale");
+  spec().constraints.add(d);
+}
+
+// 8. Quality goals set by the teacher are kept.
+rule CopyQualityGoals
+  transform g : T!QualityGoal
+  to q : S!QualityGoal {
+
+  guard: g.eContainer() = intent()
+
+  ids.exact(q, g.attribute.goalId());
+  q.attribute = g.attribute;
+  q.level = g.level;
+
+  refinement("CopyQualityGoals", q, null, "Obiettivo " + g.attribute + " " + g.level + " fissato dalla docente")
+    .from(W!Origin#TEACHER, g, null);
+  spec().qualityGoals.add(q);
+}
+
+// ---------------------------------------------------------------- rules that complete the spec
+
+// 2. Instrument and learner come from the profile.
+post InstrumentFromLearner {
+  var s = spec();
+  var l = learner();
+  s.instrument = l.instrument;
+  derivation("InstrumentFromLearner", s, "instrument", "Strumento di " + l.name + ": " + l.instrument)
+    .from(W!Origin#PROFILE, l, "instrument");
+  s.learner = l;
+  derivation("InstrumentFromLearner", s, "learner", "L'esercizio è per " + l.name)
+    .from(W!Origin#PROFILE, l, null);
+}
+
+// 3. The tempo never exceeds the one the learner is comfortable with.
+post TempoLimit {
+  var s = spec();
+  var t = intent();
+  var l = learner();
+  var requested = t.requestedBpm;
+  var comfortable = l.comfortableBpm;
+
+  if (requested > 0 and (comfortable <= 0 or requested <= comfortable)) {
+    s.maxBpm = requested;
+    refinement("TempoLimit", s, "maxBpm", "Il tempo richiesto (" + requested + " bpm) è entro il tempo comodo")
+      .from(W!Origin#TEACHER, t, "requestedBpm");
+  } else if (requested > 0) {
+    s.maxBpm = comfortable;
+    var fix = new W!ConflictFix;
+    fix.critique = "TempoAboveComfort";
+    fix.originalValue = requested.asString();
+    fix.newValue = comfortable.asString();
+    fix.init("TempoLimit", s, "maxBpm",
+      "Il tempo richiesto (" + requested + " bpm) supera il tempo comodo di " + l.name + ": limitato a "
+      + comfortable + " bpm")
+      .from(W!Origin#TEACHER, t, "requestedBpm")
+      .from(W!Origin#PROFILE, l, "comfortableBpm");
+  } else if (comfortable > 0) {
+    s.maxBpm = comfortable;
+    derivation("TempoLimit", s, "maxBpm", "Nessun tempo richiesto: si usa il tempo comodo di " + l.name)
+      .from(W!Origin#PROFILE, l, "comfortableBpm");
+  }
+}
+
+// 9. Dimensions the teacher does not mention stay simple, to keep the focus on the others.
+post FocusOtherDimensionsLow {
+  var s = spec();
+  for (attribute in FOCUS_DIMENSIONS()) {
+    if (not s.qualityGoals.exists(g | g.attribute = attribute)) {
+      var q = new S!QualityGoal;
+      ids.exact(q, attribute.goalId());
+      q.attribute = attribute;
+      q.level = S!Level#LOW;
+      s.qualityGoals.add(q);
+      derivation("FocusOtherDimensionsLow", q, null,
+        "La docente non indica un obiettivo per " + attribute + ": resta basso per non distrarre dal resto")
+        .from(W!Origin#RULE_DEFAULT, intent(), null);
+    }
+  }
+}
+
+// 10. Each quality goal is resolved to the band of the quality model that defines its thresholds.
+post ResolveThresholds {
+  for (goal in spec().qualityGoals) {
+    var band = Q!Band.all.selectOne(b | b.level = goal.level and b.eContainer().attribute = goal.attribute);
+    if (band.isDefined()) {
+      var link = new W!Resolution;
+      link.init("ResolveThresholds", goal, null,
+        goal.attribute + " " + goal.level + " significa " + band.eContainer().metric + " tra " + band.min
+        + " e " + band.max)
+        .from(W!Origin#QUALITY_MODEL, band, null);
+    }
+  }
+}
+
+// ---------------------------------------------------------------- helpers
+
+operation learner() : L!Learner { return L!Learner.all.first(); }
+
+operation intent() : T!ExerciseSpec { return T!ExerciseSpec.all.first(); }
+
+operation spec() : S!ExerciseSpec { return intent().equivalent(); }
+
+operation weaving() : W!DerivationWeaving { return W!DerivationWeaving.all.first(); }
+
+// Entry of the profile for a rhythm pattern, compared regardless of spacing.
+operation T!Pattern masteryInProfile() : Any {
+  if (self.kind <> T!PatternKind#RHYTHM) { return null; }
+  return learner().patterns.selectOne(m | rhythm.normalize(m.expression) = rhythm.normalize(self.expression));
+}
+
+operation L!PatternMastery isRequestedByTeacher() : Boolean {
+  return intent().constraints.exists(c | c.isTypeOf(T!ContainsPattern) and c.pattern.isDefined()
+    and c.pattern.kind = T!PatternKind#RHYTHM
+    and rhythm.normalize(c.pattern.expression) = rhythm.normalize(self.expression));
+}
+
+operation S!Constraint copyBasics(source : T!Constraint) {
+  self.strength = source.strength;
+  self.weight = source.weight;
+}
+
+operation Any goalId() : String {
+  return "qg_" + self.name.toLowerCase();
+}
+
+operation refinement(ruleName : String, target : Any, feature : Any, rationale : String) : W!Link {
+  var link = new W!Refinement;
+  return link.init(ruleName, target, feature, rationale);
+}
+
+operation derivation(ruleName : String, target : Any, feature : Any, rationale : String) : W!Link {
+  var link = new W!Derivation;
+  return link.init(ruleName, target, feature, rationale);
+}
+
+// Fills the common part of a link and adds it to the weaving.
+operation W!Link init(ruleName : String, target : Any, feature : Any, rationale : String) : W!Link {
+  ids.numbered(self, "link");
+  self.`rule` = ruleName; // `rule` is an ETL keyword, hence the quotes
+  self.target = target;
+  self.targetFeature = feature;
+  self.rationale = rationale;
+  weaving().links.add(self);
+  return self;
+}
+
+// Adds a source end: where the value comes from and, when it is a single attribute, which one.
+operation W!Link from(origin : Any, element : Any, feature : Any) : W!Link {
+  var source = new W!SourceEnd;
+  ids.exact(source, ids.of(self) + "_source_" + (self.sources.size() + 1));
+  source.origin = origin;
+  source.element = element;
+  source.feature = feature;
+  self.sources.add(source);
+  return self;
+}

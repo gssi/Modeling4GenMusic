@@ -1,5 +1,7 @@
 import type {
+  DerivationResult,
   Diagnostic,
+  GenerationResult,
   MetamodelDescriptor,
   MetamodelSummary,
   ModelDocument,
@@ -75,6 +77,13 @@ export const api = {
   getLayout: (id: string) => request<ModelLayout>(url(`${model(id)}/layout`)),
   saveLayout: (id: string, layout: ModelLayout) =>
     request<ModelLayout>(url(`${model(id)}/layout`), json('PUT', layout)),
+
+  xmiUrl: (id: string) => url(`${model(id)}/xmi`),
+
+  derive: (learnerModelId: string, teacherIntentModelId: string, qualityModelId: string) =>
+    request<DerivationResult>(url('/derivations'), json('POST', { learnerModelId, teacherIntentModelId, qualityModelId })),
+  generate: (specModelId: string, qualityModelId?: string) =>
+    request<GenerationResult>(url('/generations'), json('POST', { specModelId, qualityModelId })),
 
   validate: (id: string) => request<Diagnostic[]>(url(`${model(id)}/validate`), { method: 'POST' }),
   applyFix: (id: string, diagnosticId: string, fixIndex: number) =>

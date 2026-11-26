@@ -19,5 +19,13 @@
     "metamodel": "http://music/quality",
     "script": "quality.evl",
     "model": "Q"
+  },
+  {
+    "metamodel": "http://music/weaving",
+    "script": "weaving.evl",
+    "model": "W",
+    "related": [
+      { "alias": "S", "metamodel": "http://music/exercise", "reference": "derivedSpec" }
+    ]
   }
 ]

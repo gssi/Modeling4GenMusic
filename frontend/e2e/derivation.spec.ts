@@ -1,0 +1,181 @@
+import { readFileSync } from 'node:fs'
+import { expect, test } from '@playwright/test'
+
+const TEACHER = 'rgb(29, 79, 184)'
+const DERIVED = 'rgb(30, 107, 58)'
+
+test('profile from the learner form, derivation, provenance colours and generated exercise', async ({ page, request }) => {
+  await page.goto('/')
+
+  // --- the learner profile, written in the form view
+  await page.getByRole('button', { name: 'Nuovo profilo' }).click()
+  await page.getByLabel('Nome').fill('Profilo e2e')
+  await page.getByRole('button', { name: 'Crea', exact: true }).click()
+  await page.getByRole('button', { name: 'Scheda' }).click()
+  await page.getByRole('button', { name: 'Crea il profilo' }).click()
+
+  await page.getByLabel('Nome').fill('giulia')
+  await page.getByLabel('Strumento').selectOption('PIANO')
+  await page.getByLabel('Tempo comodo (bpm)').fill('72')
+  await page.getByLabel('Nota più grave').selectOption('60')
+  await page.getByLabel('Nota più acuta').selectOption('79')
+
+  await page.getByRole('button', { name: 'Valuta ritmo' }).click()
+  await page.getByLabel('Livello di Ritmo').fill('2')
+  await page.getByLabel('Confidenza su Ritmo').fill('0.7')
+
+  await page.getByLabel(/Ipovisione/).check()
+  await expect(page.getByLabel('Ingrandimento minimo del pentagramma')).toHaveValue('1.5')
+
+  await page.getByRole('button', { name: 'Aggiungi pattern' }).click()
+  await page.getByLabel('Pattern 1', { exact: true }).fill('8. 16')
+  await page.getByLabel('Stato del pattern 1').selectOption('LEARNING')
+  await page.getByRole('button', { name: 'Aggiungi pattern' }).click()
+  await page.getByLabel('Pattern 2', { exact: true }).fill('16 8.')
+  await page.getByLabel('Stato del pattern 2').selectOption('NOT_INTRODUCED')
+  await expect(page.getByRole('img', { name: 'Notazione del pattern 8. 16' }).locator('svg')).toBeVisible()
+
+  // an invalid pattern is reported while typing and has no notation
+  await page.getByLabel('Pattern 2', { exact: true }).fill('16 3')
+  await expect(page.getByText("token non valido '3'")).toBeVisible()
+  await page.getByLabel('Pattern 2', { exact: true }).fill('16 8.')
+
+  await page.screenshot({ path: 'test-results/learner-form.png' })
+  await page.getByRole('button', { name: 'Salva', exact: true }).click()
+  await expect(page.getByText('«Profilo e2e» salvato.')).toBeVisible()
+  await expect(page.getByText('Nessun problema nel modello.')).toBeVisible()
+
+  // --- the other two inputs come from the API: the quality model fixture and a teaching intent
+  const imported = await request.post('/api/models/import', {
+    multipart: { file: { name: 'piano.quality.xmi', mimeType: 'text/xml', buffer: readFileSync('../fixtures/giulia/piano.quality.xmi') } },
+  })
+  expect(imported.ok()).toBeTruthy()
+  const created = await request.post('/api/models', { data: { metamodel: 'http://music/exercise', name: 'Intento e2e', role: 'intent' } })
+  const intent = await created.json()
+  const saved = await request.put(`/api/models/${intent.id}`, {
+    data: {
+      version: intent.version,
+      roots: [
+        {
+          id: 'intent',
+          eClass: 'ExerciseSpec',
+          attributes: { key: 'G', meter: '4/4', bars: 8, requestedBpm: 90 },
+          contents: {
+            constraints: [
+              {
+                id: 'c1',
+                eClass: 'ContainsPattern',
+                contents: { pattern: [{ id: 'p1', eClass: 'Pattern', attributes: { kind: 'RHYTHM', expression: '8. 16' } }] },
+              },
+            ],
+            qualityGoals: [{ id: 'g1', eClass: 'QualityGoal', attributes: { attribute: 'RHYTHMIC_COMPLEXITY', level: 'MEDIUM' } }],
+          },
+          references: { learner: [{ model: 'profilo-e2e', id: 'learner1' }] },
+        },
+      ],
+    },
+  })
+  expect(saved.ok()).toBeTruthy()
+  await page.reload()
+
+  // --- derivation
+  await page.getByRole('button', { name: 'Deriva un esercizio' }).click()
+  await page.getByLabel('Intento didattico', { exact: true }).selectOption({ label: 'Intento e2e' })
+  await expect(page.getByLabel('Profilo dell’allievo', { exact: true })).toHaveValue('profilo-e2e')
+  await page.getByLabel('Modello di qualità', { exact: true }).selectOption({ label: 'piano.quality' })
+
+  await expect(page.getByText(/Il tempo richiesto \(90 bpm\) supera il tempo comodo/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Deriva', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Limita il tempo a 72 bpm' }).click()
+  await expect(page.getByText('Nessun problema: l’intento è pronto per la derivazione.')).toBeVisible()
+  await page.getByRole('button', { name: 'Deriva', exact: true }).click()
+
+  // --- the derived spec opens with provenance colours
+  await expect(page.getByRole('tab', { name: /Spec derivata/ })).toBeVisible()
+  const node = (text: string) => page.locator('.model-node', { hasText: text })
+  await expect(node(': ContainsPattern')).toHaveClass(/is-tint-teacher/)
+  await expect(node(': ContainsPattern')).toHaveCSS('border-top-color', TEACHER)
+  await expect(node(': ContainsPattern')).toContainText('minOccurrences = 3')
+  for (const derived of [': ExcludesPattern', ': RangeConstraint', ': RenderConstraint']) {
+    await expect(node(derived)).toHaveClass(/is-tint-derived/)
+    await expect(node(derived)).toHaveCSS('border-top-color', DERIVED)
+  }
+  const spec = node(': ExerciseSpec')
+  await expect(spec.locator('li', { hasText: 'key = "G"' })).toHaveClass(/is-tint-teacher/)
+  await expect(spec.locator('li', { hasText: 'maxBpm = 72' })).toHaveClass(/is-tint-derived/)
+  await expect(spec.locator('li', { hasText: 'instrument = PIANO' })).toHaveClass(/is-tint-derived/)
+  await expect(page.getByLabel('Legenda dei colori')).toContainText('Chiesto dalla docente')
+
+  // selecting a derived element explains where it comes from
+  await node(': RangeConstraint').click()
+  await expect(page.getByText('Regola RangeFromLearner')).toBeVisible()
+
+  await page.screenshot({ path: 'test-results/derived-spec.png' })
+
+  // the same diagram in a smaller window: it stays readable and is panned instead of shrunk
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.getByRole('button', { name: 'Adatta' }).click()
+  await page.screenshot({ path: 'test-results/derived-spec-1024.png' })
+  await expect(page.getByRole('button', { name: 'Deriva un esercizio' })).toBeInViewport()
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.getByRole('button', { name: 'Adatta' }).click()
+
+  // a source of the link opens beside the derived spec, with the source element selected
+  await page.getByRole('button', { name: /learner1\.lowestMidi/ }).click()
+  await expect(page.getByRole('button', { name: 'Chiudi il confronto' })).toBeVisible()
+  await expect(page.locator('.pane').nth(1).locator('.model-node.is-selected')).toContainText('learner1 : Learner')
+  await page.screenshot({ path: 'test-results/split-view.png' })
+  await page.getByRole('button', { name: 'Chiudi il confronto' }).click()
+
+  // the derivation log lists one line per link
+  await page.getByRole('button', { name: 'Log di derivazione' }).click()
+  await expect(page.locator('.derivation-log li', { hasText: 'TempoLimit' })).toContainText('Conflitto corretto')
+  await page.getByRole('button', { name: 'Problemi' }).click()
+
+  // exports: the model as JSON and the diagram as an image
+  await page.getByText('Esporta', { exact: true }).click()
+  const [json] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Modello JSON' }).click()])
+  expect(json.suggestedFilename()).toBe('intento-e2e.derived.json')
+  const [png] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Immagine PNG' }).click()])
+  expect(png.suggestedFilename()).toBe('intento-e2e.derived.png')
+  const [svg] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Immagine SVG' }).click()])
+  expect(svg.suggestedFilename()).toBe('intento-e2e.derived.svg')
+  const [xmi] = await Promise.all([page.waitForEvent('download'), page.getByRole('link', { name: 'Modello XMI' }).click()])
+  expect(xmi.suggestedFilename()).toBe('intento-e2e.derived.xmi')
+  await page.getByText('Esporta', { exact: true }).click()
+
+  // --- the stub generation gives a valid exercise
+  await page.getByRole('button', { name: 'Esercizio', exact: true }).click()
+  await page.getByRole('button', { name: 'Genera esercizio' }).click()
+  await expect(page.getByText(/^Valido/)).toBeVisible()
+  // the sample tune has short bars: a remark, not a failure
+  await expect(page.locator('.check-list li.is-note')).toContainText('Le battute 2, 4, 6, 7 non durano 4/4')
+  await expect(page.getByRole('img', { name: 'Partitura dell’esercizio generato' }).locator('svg')).toBeVisible()
+  await page.screenshot({ path: 'test-results/generated-exercise.png' })
+
+  // --- the other form views
+  await page.getByRole('button', { name: /^Intento e2e/ }).click()
+  await page.getByRole('button', { name: 'Scheda', exact: true }).click()
+  await expect(page.getByLabel('Tipo di modello')).toHaveValue('intent')
+  await expect(page.getByLabel('Tonalità')).toHaveValue('G')
+  await expect(page.getByLabel('Allievo')).toHaveValue('profilo-e2e#learner1')
+  await page.getByLabel('Tipo di vincolo da aggiungere').selectOption('RangeConstraint')
+  await page.getByRole('button', { name: 'Aggiungi vincolo' }).click()
+  await expect(page.getByRole('heading', { name: 'Estensione delle note' })).toBeVisible()
+  await page.getByRole('button', { name: 'Aggiungi obiettivo di qualità' }).click()
+  await page.getByRole('group', { name: 'Livello di Complessità melodica' }).getByText('Alta').click()
+  // the page itself never scrolls: only the panels do
+  expect(await page.evaluate(() => document.scrollingElement?.scrollTop)).toBe(0)
+  await page.screenshot({ path: 'test-results/intent-builder.png' })
+  await page.getByRole('button', { name: 'Annulla', exact: true }).click()
+  await page.getByRole('button', { name: 'Annulla', exact: true }).click()
+  await page.getByRole('button', { name: 'Annulla', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Annulla', exact: true })).toBeDisabled()
+
+  await page.getByRole('button', { name: /^piano\.quality/ }).click()
+  await page.getByRole('button', { name: 'Scheda', exact: true }).click()
+  await expect(page.locator('.form-warnings')).toHaveCount(0)
+  await page.getByLabel('RHYTHMIC_COMPLEXITY, Medio: da').fill('0.2')
+  await expect(page.locator('.form-warnings')).toContainText('si sovrappongono')
+  await page.screenshot({ path: 'test-results/quality-table.png' })
+})

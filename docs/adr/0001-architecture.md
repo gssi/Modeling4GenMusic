@@ -38,7 +38,14 @@ i risultati di una validazione: per applicare una correzione la riesegue.
 
 **Nessuna autenticazione nell'MVP**, ma ogni API porta un `workspaceId` (oggi `default`).
 
-## Decisioni sulle regole di derivazione (per M4 e M5)
+**Editor generico e dominio separati.** `src/editor/` non importa nulla da `src/domain/`: colori di
+provenienza, viste a modulo e pannelli aggiuntivi gli arrivano dall'applicazione come parametri.
+
+**Derivazione come script.** La trasformazione è un file ETL; modelli di ingresso e uscita, alias e
+script sono in `epsilon/derivation.json`. I modelli prodotti hanno id deterministici, così una
+nuova derivazione li sovrascrive e i riferimenti restano validi.
+
+## Decisioni sulle regole di derivazione
 
 - La derivazione limita sempre il tempo a quello comodo dell'allievo e lo registra come
   `ConflictFix`; la correzione EVL serve a renderlo esplicito al docente prima di derivare.

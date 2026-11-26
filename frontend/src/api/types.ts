@@ -96,3 +96,23 @@ export interface Diagnostic {
   message: string
   fixes: { title: string }[]
 }
+
+export interface DerivationResult {
+  derivedSpecModelId: string
+  weavingModelId: string
+  diagnostics: Diagnostic[]
+}
+
+export interface GenerationCheck {
+  name: string
+  passed: boolean
+  /** False for remarks and preferences, which do not make the exercise invalid. */
+  blocking: boolean
+  message: string
+}
+
+export interface GenerationResult {
+  abc: string
+  metadata?: Record<string, unknown>
+  report: { valid: boolean; checks: GenerationCheck[] }
+}

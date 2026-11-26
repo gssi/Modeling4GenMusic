@@ -9,8 +9,13 @@ export interface ModelEdgeData extends Record<string, unknown> {
   ownerId: string
   ref?: Ref
   emphasis: 'normal' | 'hot' | 'dim'
+  /** Lane among the references that join the same two nodes. */
+  lane: number
+  lanes: number
   onHover: (id: string | null) => void
 }
+
+const LANE_GAP = 20
 
 export type ModelFlowEdge = Edge<ModelEdgeData, 'model'>
 
@@ -20,16 +25,20 @@ export type ModelFlowEdge = Edge<ModelEdgeData, 'model'>
  */
 export function ModelEdge(props: EdgeProps<ModelFlowEdge>) {
   const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected } = props
+  // Parallel references are spread around the attachment point, one label height apart.
+  const lanes = data?.lanes ?? 1
+  const lane = data?.lane ?? 0
+  const shift = (lane - (lanes - 1) / 2) * LANE_GAP
   const [path] = getSmoothStepPath({
     sourceX,
-    sourceY,
+    sourceY: sourceY + shift,
     targetX,
-    targetY,
+    targetY: targetY + shift,
     sourcePosition,
     targetPosition,
     borderRadius: 10,
     // References turn closer to their source than containments, so the two kinds keep separate lanes.
-    stepPosition: data?.kind === 'containment' ? 0.5 : 0.3,
+    stepPosition: data?.kind === 'containment' ? 0.5 : 0.3 + lane * 0.1,
   })
   if (!data) return null
   const suffix = data.emphasis === 'hot' || selected ? '-hot' : ''
@@ -47,7 +56,10 @@ export function ModelEdge(props: EdgeProps<ModelFlowEdge>) {
       <EdgeLabelRenderer>
         <div
           className={`model-edge-label is-${data.kind} is-${data.emphasis}${selected ? ' is-selected' : ''}`}
-          style={{ transform: `translate(-100%, -50%) translate(${targetX - 14}px, ${targetY - 13}px)` }}
+          style={{
+            // A lone connector carries its label above the line; parallel ones carry it on the line.
+            transform: `translate(-100%, -50%) translate(${targetX - (lanes > 1 ? 20 : 14)}px, ${targetY + shift - (lanes > 1 ? 0 : 13)}px)`,
+          }}
           onMouseEnter={() => data.onHover(id)}
           onMouseLeave={() => data.onHover(null)}
         >

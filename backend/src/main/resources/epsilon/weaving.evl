@@ -1,0 +1,38 @@
+// Validation of a derivation trace. Model W conforms to http://music/weaving;
+// model S is the derived spec the trace points to (empty when it cannot be found).
+
+context W!DerivationWeaving {
+
+  // A trace that is still being written by hand has no links yet: say so once, instead of
+  // listing every element of the spec as untraced.
+  critique TraceWithoutLinks {
+    check: self.links.notEmpty()
+    message: "La traccia non ha ancora collegamenti. Si ottiene completa con «Deriva un esercizio»; "
+      + "a mano serve un link per ogni elemento della spec derivata"
+  }
+
+  critique DerivedSpecIsTheIntent {
+    guard: self.derivedSpec.isDefined() and self.teacherIntent.isDefined()
+    check: self.derivedSpec <> self.teacherIntent
+    message: "La spec derivata e l'intento della docente sono lo stesso elemento: "
+      + "la traccia deve collegare l'intento a una spec diversa, quella derivata"
+  }
+
+  // Completeness: every element of the derived spec is the target of at least one link.
+  constraint DerivedElementTraced {
+    guard: self.links.notEmpty()
+    check: self.untraced().isEmpty()
+    message: "Elementi della spec derivata senza un link di provenienza: "
+      + self.untraced().collect(e | e.eClass().name + " " + e.eResource().getID(e)).concat(", ")
+  }
+}
+
+operation W!DerivationWeaving untraced() : Sequence {
+  var targets = self.links.collect(l | l.target).asSet();
+  var elements = Sequence{};
+  elements.addAll(S!ExerciseSpec.all);
+  elements.addAll(S!Constraint.all);
+  elements.addAll(S!Pattern.all);
+  elements.addAll(S!QualityGoal.all);
+  return elements.select(e | not targets.includes(e));
+}
