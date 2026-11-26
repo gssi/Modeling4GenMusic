@@ -111,8 +111,25 @@ export interface GenerationCheck {
   message: string
 }
 
+export interface GenerationReport {
+  valid: boolean
+  checks: GenerationCheck[]
+}
+
 export interface GenerationResult {
   abc: string
   metadata?: Record<string, unknown>
-  report: { valid: boolean; checks: GenerationCheck[] }
+  report: GenerationReport
+  /** Every exercise that was written, in order; the chosen one is among them. */
+  attempts?: { abc: string; report: GenerationReport }[]
+}
+
+export interface GeneratorInfo {
+  id: string
+  label: string
+  model: string | null
+  available: boolean
+  /** What to do when the generator is not available. */
+  reason: string | null
+  isDefault: boolean
 }

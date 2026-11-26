@@ -20,9 +20,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class BasicExerciseValidator implements ExerciseValidator {
 
-    /** A whole note in the unit of {@link AbcTune.Event#units()}: sixty-fourth notes. */
-    private static final int WHOLE_UNITS = 64;
-
     @Override
     public ValidationReport validate(String abc, EObject exerciseSpec, EObject qualityModel) {
         AbcTune tune;
@@ -64,7 +61,7 @@ public class BasicExerciseValidator implements ExerciseValidator {
             return Optional.empty();
         }
         String[] parts = text.strip().split("\\s*/\\s*");
-        int expected = WHOLE_UNITS * Integer.parseInt(parts[0]) / Integer.parseInt(parts[1]);
+        int expected = AbcTune.WHOLE * Integer.parseInt(parts[0]) / Integer.parseInt(parts[1]);
         List<Integer> wrong = new ArrayList<>();
         for (int i = 0; i < tune.bars().size(); i++) {
             int length = tune.bars().get(i).stream().mapToInt(AbcTune.Event::units).sum();

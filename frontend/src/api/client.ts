@@ -2,6 +2,7 @@ import type {
   DerivationResult,
   Diagnostic,
   GenerationResult,
+  GeneratorInfo,
   MetamodelDescriptor,
   MetamodelSummary,
   ModelDocument,
@@ -82,8 +83,9 @@ export const api = {
 
   derive: (learnerModelId: string, teacherIntentModelId: string, qualityModelId: string) =>
     request<DerivationResult>(url('/derivations'), json('POST', { learnerModelId, teacherIntentModelId, qualityModelId })),
-  generate: (specModelId: string, qualityModelId?: string) =>
-    request<GenerationResult>(url('/generations'), json('POST', { specModelId, qualityModelId })),
+  listGenerators: () => request<GeneratorInfo[]>(url('/generations/generators')),
+  generate: (specModelId: string, qualityModelId?: string, generator?: string) =>
+    request<GenerationResult>(url('/generations'), json('POST', { specModelId, qualityModelId, generator })),
 
   validate: (id: string) => request<Diagnostic[]>(url(`${model(id)}/validate`), { method: 'POST' }),
   applyFix: (id: string, diagnosticId: string, fixIndex: number) =>

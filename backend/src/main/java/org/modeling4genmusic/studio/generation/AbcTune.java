@@ -1,5 +1,6 @@
 package org.modeling4genmusic.studio.generation;
 
+import org.modeling4genmusic.studio.rhythm.RhythmPattern;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,12 +9,12 @@ import java.util.Map;
 /**
  * Reader for the subset of ABC notation the studio produces: header fields (M, L, K, Q, T), single
  * notes with accidentals, octave marks and lengths, rests, broken rhythm ({@code >} and {@code <}) and
- * bar lines. Chords, tuplets, grace notes and inline fields are not supported and are reported as errors.
+ * bar lines. Common tuplets are read and grace notes skipped; chords and inline fields are reported as errors.
  */
 public final class AbcTune {
 
-    /** Length of a whole note in sixty-fourths, the same unit used for rhythm patterns. */
-    private static final int WHOLE = 64;
+    /** A whole note in the unit of {@link Event#units()}, the same unit used for rhythm patterns. */
+    public static final int WHOLE = RhythmPattern.WHOLE;
     private static final String SHARP_ORDER = "FCGDAEB";
     private static final String FLAT_ORDER = "BEADGCF";
     private static final Map<String, Integer> MAJOR_KEYS = Map.ofEntries(Map.entry("C", 0), Map.entry("G", 1),
@@ -30,7 +31,7 @@ public final class AbcTune {
      * A note or a rest.
      *
      * @param midi  MIDI pitch, or -1 for a rest
-     * @param units length in sixty-fourth notes
+     * @param units length in units of 1/192 of a whole note
      */
     public record Event(int midi, int units) {
 
@@ -134,6 +135,10 @@ public final class AbcTune {
         /** Numerator and denominator the next event is multiplied by, set by a broken rhythm mark. */
         private int pendingNum = 1;
         private int pendingDen = 1;
+        /** Notes still to read in the current tuplet, and the ratio that shortens (or lengthens) them. */
+        private int tupletLeft;
+        private int tupletNum = 1;
+        private int tupletDen = 1;
 
         BodyReader(String text, int unit, int[] signature) {
             this.text = text;
@@ -159,12 +164,14 @@ public final class AbcTune {
                     int close = text.indexOf(c, pos + 1);
                     pos = close < 0 ? text.length() : close + 1;
                 } else if (c == '(') {
-                    if (pos + 1 < text.length() && Character.isDigit(text.charAt(pos + 1))) {
-                        throw unsupported("gruppi irregolari");
-                    }
                     pos++;
+                    if (pos < text.length() && Character.isDigit(text.charAt(pos))) {
+                        tuplet(text.charAt(pos++) - '0');
+                    }
                 } else if (c == '{') {
-                    throw unsupported("abbellimenti");
+                    // Grace notes ornament the next note and take no time of their own.
+                    int close = text.indexOf('}', pos + 1);
+                    pos = close < 0 ? text.length() : close + 1;
                 } else if (c == '>' || c == '<') {
                     broken(c);
                 } else if (c == 'z' || c == 'x' || c == '^' || c == '_' || c == '=' || isNoteLetter(c)) {
@@ -183,6 +190,21 @@ public final class AbcTune {
 
         private IllegalArgumentException unsupported(String what) {
             return new IllegalArgumentException(what + " non sono supportati");
+        }
+
+        /** {@code (3} plays the next three notes in the time of two, and so on for the common groups. */
+        private void tuplet(int notes) {
+            if (pos < text.length() && text.charAt(pos) == ':') {
+                throw unsupported("gruppi irregolari con rapporto esplicito");
+            }
+            int time = switch (notes) {
+                case 2, 4 -> 3;
+                case 3, 6 -> 2;
+                default -> throw unsupported("gruppi irregolari di " + notes + " note");
+            };
+            tupletLeft = notes;
+            tupletNum = time;
+            tupletDen = notes;
         }
 
         private void endBar() {
@@ -249,6 +271,10 @@ public final class AbcTune {
                 den *= number(2);
             }
             int units = scale(scale(unit, num, den), pendingNum, pendingDen);
+            if (tupletLeft > 0) {
+                units = scale(units, tupletNum, tupletDen);
+                tupletLeft--;
+            }
             pendingNum = 1;
             pendingDen = 1;
             bar.add(new Event(midi, units));

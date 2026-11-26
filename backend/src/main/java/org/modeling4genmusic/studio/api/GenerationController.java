@@ -1,6 +1,9 @@
 package org.modeling4genmusic.studio.api;
 
+import java.util.List;
+
 import org.modeling4genmusic.studio.generation.GenerationService;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,7 +21,14 @@ public class GenerationController {
         this.service = service;
     }
 
-    public record GenerationRequest(String specModelId, String qualityModelId) {
+    /** {@code generator} is optional: the configured default is used when it is missing. */
+    public record GenerationRequest(String specModelId, String qualityModelId, String generator) {
+    }
+
+    /** The generators that can be asked for an exercise, and whether each one is ready. */
+    @GetMapping("/generators")
+    public List<GenerationService.GeneratorInfo> generators() {
+        return service.generators();
     }
 
     @PostMapping
@@ -28,6 +38,6 @@ public class GenerationController {
         if (request.specModelId() == null || request.specModelId().isBlank()) {
             throw ApiException.badRequest("Manca il campo specModelId");
         }
-        return service.generate(workspaceId, request.specModelId(), request.qualityModelId());
+        return service.generate(workspaceId, request.specModelId(), request.qualityModelId(), request.generator());
     }
 }

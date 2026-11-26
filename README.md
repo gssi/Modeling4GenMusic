@@ -62,6 +62,26 @@ cd frontend && npx playwright install chromium && npm run e2e
 Il test end-to-end avvia da solo backend (porta 8090) e frontend (porta 5174) su un workspace
 temporaneo, quindi non tocca i modelli di `workspace/`.
 
+## Generazione con Ollama
+
+L'esercizio può essere scritto da [ChatMusician](https://huggingface.co/m-a-p/ChatMusician), un
+modello addestrato sulla notazione ABC, eseguito in locale da [Ollama](https://ollama.com).
+
+```
+ollama serve
+ollama pull hf.co/mradermacher/ChatMusician-GGUF:Q4_K_M    # 4,1 GB
+```
+
+Nella vista «Esercizio» scegli «Ollama» e premi «Genera esercizio». Ogni esercizio viene
+controllato rispetto alla specifica; se non la rispetta se ne chiede un altro, fino a tre. Il
+modello segue i vincoli in modo debole: aspettati che una parte delle generazioni non sia valida.
+Dettagli e misure in [docs/adr/0002-generation-with-ollama.md](docs/adr/0002-generation-with-ollama.md).
+
+Le impostazioni sono in `backend/src/main/resources/application.properties` (`studio.ollama.*`,
+`studio.generation.*`) e si possono sovrascrivere con variabili d'ambiente, per esempio
+`STUDIO_GENERATION_MAX_ATTEMPTS=5`. Con Docker il backend raggiunge l'Ollama della macchina
+all'indirizzo `host.docker.internal:11434`.
+
 ## Modelli sul disco
 
 Ogni modello `id` di un workspace è fatto di tre file in `workspace/<workspace>/`:
@@ -78,7 +98,7 @@ Ogni modello `id` di un workspace è fatto di tre file in `workspace/<workspace>
    correzioni proposte e produce la specifica dell'esercizio e la traccia di derivazione.
 3. Nella specifica derivata il blu indica ciò che ha chiesto la docente, il verde ciò che viene
    dal profilo o dalle regole; selezionando un elemento si legge il perché e si aprono le sorgenti.
-4. La vista «Esercizio» della specifica chiede un esercizio e lo controlla. La generazione
-   musicale non è ancora collegata: risponde un generatore di esempio.
+4. La vista «Esercizio» della specifica chiede un esercizio e lo controlla. Può scriverlo un
+   brano di prova fisso oppure un modello musicale locale servito da Ollama (vedi sotto).
 
 Per caricare l'esempio, importa dall'editor i tre file di `fixtures/giulia/` con «Importa XMI».

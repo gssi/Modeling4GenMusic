@@ -41,15 +41,15 @@ class AbcTuneTest {
     @Test
     void readsLengthsInSixtyFourthsIncludingBrokenRhythm() {
         AbcTune tune = tune("C", "1/8", "C2 D E/ F/2 G4 | c>B A<G z2 C3/2 |]");
-        assertThat(tune.bars().get(0)).extracting(Event::units).containsExactly(16, 8, 4, 4, 32);
-        assertThat(tune.bars().get(1)).extracting(Event::units).containsExactly(12, 4, 4, 12, 16, 12);
+        assertThat(tune.bars().get(0)).extracting(Event::units).containsExactly(48, 24, 12, 12, 96);
+        assertThat(tune.bars().get(1)).extracting(Event::units).containsExactly(36, 12, 12, 36, 48, 36);
     }
 
     @Test
     void ignoresAnnotationsTiesAndSlursAndUsesTheDefaultUnit() {
         AbcTune tune = AbcTune.parse("K:C\n\"Am\"(C2 D2-) D2 !f! E2 | % comment\n G8 ||");
         assertThat(tune.bars()).hasSize(2);
-        assertThat(tune.bars().get(0)).extracting(Event::units).containsExactly(16, 16, 16, 16);
+        assertThat(tune.bars().get(0)).extracting(Event::units).containsExactly(48, 48, 48, 48);
     }
 
     @Test
@@ -58,7 +58,7 @@ class AbcTuneTest {
         assertThatThrownBy(() -> AbcTune.parse("M:4/4\nC D E F")).hasMessageContaining("K:");
         assertThatThrownBy(() -> tune("H", "1/8", "C")).hasMessageContaining("tonalità");
         assertThatThrownBy(() -> tune("C", "1/8", "[CEG]2")).hasMessageContaining("accordi");
-        assertThatThrownBy(() -> tune("C", "1/8", "(3CDE")).hasMessageContaining("irregolari");
+        assertThatThrownBy(() -> tune("C", "1/8", "(5CDEFG")).hasMessageContaining("irregolari");
         assertThatThrownBy(() -> tune("C", "1/8", "C ? D")).hasMessageContaining("'?'");
     }
 
@@ -80,6 +80,15 @@ class AbcTuneTest {
         assertThat(tune.headers()).containsEntry("M", "4/4").containsEntry("K", "G").containsEntry("Q", "1/4=72");
         assertThat(tune.notes()).extracting(Event::midi).allMatch(m -> m >= 60 && m <= 79);
         assertThat(tune.bars().stream().map(b -> b.stream().mapToInt(Event::units).sum()).toList())
-                .isEqualTo(List.of(64, 48, 64, 48, 64, 48, 48, 64));
+                .isEqualTo(List.of(192, 144, 192, 144, 192, 144, 144, 192));
+    }
+
+    @Test
+    void readsTupletsAndSkipsGraceNotes() {
+        AbcTune tune = AbcTune.parse("X:1\nL:1/8\nM:4/4\nK:G\n(3(Bcd) e2 {f}g2 (3A2B2c2 | (2AB (4GABc z2 |]");
+        // a triplet of eighths lasts a quarter; a triplet of quarters lasts a half
+        assertThat(tune.bars().get(0)).extracting(Event::units).containsExactly(16, 16, 16, 48, 48, 32, 32, 32);
+        assertThat(tune.bars().get(0).stream().mapToInt(Event::units).sum()).isEqualTo(AbcTune.WHOLE + 48);
+        assertThat(tune.bars().get(1)).extracting(Event::units).containsExactly(36, 36, 18, 18, 18, 18, 48);
     }
 }

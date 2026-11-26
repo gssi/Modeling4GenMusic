@@ -3,6 +3,11 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    environment:
+      # Ollama runs on the host machine, outside the container.
+      STUDIO_OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./workspace:/workspace
     ports:

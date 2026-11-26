@@ -17,10 +17,10 @@ import java.util.Set;
 public final class RhythmPattern {
 
     private static final Set<String> DURATIONS = Set.of("1", "2", "4", "8", "16");
-    /** Length of a whole note in sixty-fourths, so that a dotted sixteenth is still an integer. */
-    private static final int WHOLE = 64;
+    /** Units in a whole note: 192, so that dotted sixteenths and triplets are still integers. */
+    public static final int WHOLE = 192;
 
-    /** One duration token; {@code units} is its length in sixty-fourth notes. */
+    /** One duration token; {@code units} is its length in units of 1/192 of a whole note. */
     public record Token(int duration, boolean dotted) {
 
         public int units() {
@@ -44,7 +44,7 @@ public final class RhythmPattern {
         return tokens;
     }
 
-    /** Total length in sixty-fourth notes. */
+    /** Total length in units of 1/192 of a whole note. */
     public int units() {
         return tokens.stream().mapToInt(Token::units).sum();
     }

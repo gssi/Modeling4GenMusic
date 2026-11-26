@@ -2,6 +2,29 @@
 
 Una nota per milestone. Le modifiche ai metamodelli vanno segnalate qui.
 
+## Generazione con Ollama
+
+- Nuovo generatore `ollama`: chiede l'esercizio in ABC a ChatMusician tramite un server Ollama
+  locale. Il generatore di prova resta e rimane il predefinito.
+- `POST /api/generations` accetta `generator`; la risposta porta anche l'elenco dei tentativi.
+  Nuovo `GET /api/generations/generators` con la disponibilità di ciascun generatore.
+- Ciclo genera, controlla, riprova, fino a tre tentativi; si restituisce il primo esercizio valido
+  o il migliore tra quelli scartati.
+- La risposta del modello viene riordinata (accordi, dinamiche, ritornelli, battuta in levare,
+  numero di battute) senza modificare le note.
+- Il lettore ABC legge terzine e gruppi comuni e ignora gli abbellimenti. L'unità di durata passa
+  a 1/192 di semibreve.
+- Vista «Esercizio»: scelta del generatore con stato di disponibilità, modello e tempi,
+  tentativi scartati consultabili.
+
+Scostamenti da quanto concordato:
+
+- Il repository GGUF previsto conteneva solo la quantizzazione Q2: si usa
+  `mradermacher/ChatMusician-GGUF` Q4_K_M, che è la variante addestrata a seguire istruzioni.
+- Il riscontro al modello sui controlli falliti è implementato ma disattivato: nelle misure non
+  aumentava gli esercizi validi (16 su 30 con, 20 su 30 senza). Si riattiva con
+  `studio.ollama.feedback=true`.
+
 ## Rifiniture dopo M6
 
 - Riferimenti paralleli tra gli stessi due elementi disegnati su corsie separate, ognuno con la

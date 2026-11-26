@@ -22,10 +22,20 @@ public class MockExerciseGenerator implements ExerciseGenerator {
             """;
 
     @Override
+    public String id() {
+        return "mock";
+    }
+
+    @Override
+    public String label() {
+        return "Esempio";
+    }
+
+    @Override
     public GenerationResult generate(EObject exerciseSpec, GenerationContext ctx) {
         AbcTune tune = AbcTune.parse(ABC);
         Map<String, Object> metadata = new LinkedHashMap<>();
-        metadata.put("generator", "mock");
+        metadata.put("generator", id());
         metadata.put("title", tune.headers().get("T"));
         metadata.put("meter", tune.headers().get("M"));
         metadata.put("key", tune.headers().get("K"));

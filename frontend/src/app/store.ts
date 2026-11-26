@@ -4,6 +4,7 @@ import type {
   DerivationResult,
   Diagnostic,
   GenerationResult,
+  GeneratorInfo,
   MetamodelSummary,
   ModelDocument,
   ModelHeader,
@@ -81,6 +82,9 @@ interface StudioState {
   derivation: DerivationState
   generations: Record<string, GenerationResult>
   generating: string | null
+  generators: GeneratorInfo[]
+  /** Generator chosen in the exercise view; null until the list is read, then the default one. */
+  generatorId: string | null
 
   setViewMode: (modelId: string, mode: ViewMode) => void
   setRole: (modelId: string, role: string) => void
@@ -91,6 +95,8 @@ interface StudioState {
   showSource: (modelId: string, elementId: string) => Promise<void>
   closeSplit: () => void
   generate: (modelId: string) => Promise<void>
+  loadGenerators: () => Promise<void>
+  chooseGenerator: (id: string) => void
 
   init: () => Promise<void>
   refreshModels: () => Promise<void>
@@ -262,6 +268,8 @@ export const useStudio = create<StudioState>((set, get) => {
     derivation: { learnerId: '', intentId: '', qualityId: '', running: false, result: null },
     generations: {},
     generating: null,
+    generators: [],
+    generatorId: null,
 
     setViewMode: (modelId, mode) => set((state) => ({ viewMode: { ...state.viewMode, [modelId]: mode } })),
 
@@ -324,6 +332,23 @@ export const useStudio = create<StudioState>((set, get) => {
 
     closeSplit: () => set({ split: null }),
 
+    loadGenerators: async () => {
+      try {
+        const generators = await api.listGenerators()
+        set((state) => ({
+          generators,
+          generatorId:
+            state.generatorId && generators.some((g) => g.id === state.generatorId)
+              ? state.generatorId
+              : (generators.find((g) => g.isDefault)?.id ?? generators[0]?.id ?? null),
+        }))
+      } catch {
+        // the view says that no generator could be read
+      }
+    },
+
+    chooseGenerator: (id) => set({ generatorId: id }),
+
     generate: async (modelId) => {
       const model = get().open[modelId]
       if (!model) return
@@ -333,10 +358,11 @@ export const useStudio = create<StudioState>((set, get) => {
       }
       set({ generating: modelId })
       try {
-        const result = await api.generate(modelId, get().provenance[modelId]?.inputs.qualityModel)
+        const result = await api.generate(modelId, get().provenance[modelId]?.inputs.qualityModel, get().generatorId ?? undefined)
         set((state) => ({ generations: { ...state.generations, [modelId]: result }, generating: null }))
       } catch (e) {
         set({ generating: null, notice: { kind: 'error', text: `Generazione non riuscita: ${message(e)}` } })
+        void get().loadGenerators()
       }
     },
 
