@@ -2,6 +2,91 @@
 
 Una nota per milestone. Le modifiche ai metamodelli vanno segnalate qui.
 
+## Assistente per scrivere le regole
+
+- Nell'editor di ogni script, «Descrivi la regola»: una descrizione in italiano diventa una regola
+  EVL o ETL, scritta da un modello linguistico locale su Ollama (`qwen2.5-coder:14b`).
+- La proposta passa gli stessi controlli del salvataggio; se fallisce, il modello è interrogato di
+  nuovo con gli errori (fino a tre volte). In più: nomi già usati e regole di trasformazione che
+  creerebbero elementi in un modello di sola lettura vengono rifiutati.
+- L'anteprima mostra cosa segnalerebbe una regola di validazione sui modelli del workspace.
+- L'assistente non salva: la regola si inserisce nel testo e si salva a mano.
+- API: `GET /api/assistant`, `POST /api/assistant/rules`. Impostazioni `studio.assistant.*`.
+
+## Regole di derivazione consultabili e modificabili
+
+- La scheda «Regole» mostra anche `derive.etl`, descritto con il parser ETL: regole di
+  trasformazione (sorgente, elementi creati, `guard`), blocchi `pre` e `post`, operazioni.
+- Si modifica come gli script di validazione: sintassi, poi una derivazione di prova sugli intenti
+  del workspace, senza salvare ciò che produce. Lo script modificato sta in `workspace/.rules/`.
+- API: `GET`, `PUT`, `DELETE /api/derivations/script` e `POST /api/derivations/script/check`.
+- Il pulsante in alto ora si chiama «Regole».
+
+## Regole di validazione modificabili
+
+- «Modifica» su ogni script nella scheda delle regole: il testo è controllato mentre si scrive
+  (sintassi con il parser EVL, poi esecuzione di prova sui modelli del workspace) e si salva solo
+  se passa entrambi i controlli.
+- Gli script modificati stanno in `workspace/.rules/` e prendono il posto degli originali, che
+  restano nel backend; «Ripristina le originali» torna a quelli.
+- API: `POST /api/rules/{script}/check`, `PUT /api/rules/{script}`, `DELETE /api/rules/{script}`.
+- I file `validations.json` e `derivation.json` non si modificano dall'editor.
+
+## Regole di validazione consultabili
+
+- `GET /api/rules`: gli script EVL di `validations.json` descritti con il parser di Epsilon
+  (contesti, regole con gravità, `guard`, `check`, messaggio, correzioni, operazioni, sorgente).
+  Uno script che non si analizza viene restituito con i suoi errori di sintassi.
+- Scheda «Regole di validazione», in sola lettura, con ricerca; da ogni problema «Vedi la regola».
+
+## Versioni dei modelli
+
+- Ogni salvataggio lascia una versione in `workspace/<workspace>/.history/<id>/`, con data e
+  origine (creazione, importazione, salvataggio, correzione rapida, derivazione, ripristino).
+- API: elenco, lettura e ripristino di una versione; il ripristino aggiunge una versione.
+- Pulsante «Versioni» in ogni modello: elenco, confronto con il modello aperto (elementi in più,
+  in meno, valori diversi) e ripristino.
+- I modelli già presenti, o modificati sul disco, entrano nella cronologia alla prima lettura.
+- Si conservano le ultime 50 versioni per modello (`studio.history-size`).
+
+## Limite fisico nel profilo: apertura della mano
+
+**Modifica ai metamodelli** (richiesta in `docs/hand-span-limit.md`):
+
+- `profile`: nuovo enum `Hand { LEFT, RIGHT }` e nuova classe `HandSpanLimit extends Need` con
+  `hand [1]`, `handSpanCm` (facoltativo, informativo) e `maxStretchSemitones [1]`.
+- `exercise`: nuova classe `SpanConstraint extends Constraint` con `hand [1]` (riusa
+  `profile.Hand`), `maxSimultaneousSemitones` e `maxStretchInPosition`.
+- `weaving`: nessuna modifica.
+- I file `.ecore` sono stati aggiornati a mano in parallelo agli `.emf`, perché in questo ambiente
+  non c'è Emfatic; i riferimenti tra file restano relativi (`profile.ecore#//Hand`). I diagrammi
+  `profile` ed `exercise` in `metamodels/img/` sono rigenerati con le nuove classi da
+  `metamodels/render_diagrams.py`, che legge gli `.ecore`; le copie PNG si ottengono con
+  `metamodels/svg_to_png.mjs`. I diagrammi `quality` e `weaving` sono quelli originali.
+
+Il resto:
+
+- Fixture: `giulia.profile.xmi` ha un `HandSpanLimit` (mano destra, 16 cm, sesta maggiore);
+  nuovo `giulia-leap.intent.xmi` con un salto d'ottava.
+- Parser dei pattern intervallari (`+3 -2 +12`) in Java (`interval/`) e TypeScript
+  (`frontend/src/domain/interval.ts`), con gli stessi casi di test.
+- `profile.evl`: `HandSpanBounds` (errore). `intent.evl`: `LeapBeyondReach` (avviso, senza
+  correzione), sul limite della mano destra.
+- `derive.etl`: regola `SpanFromHandLimit`, con un link `Derivation` di origine PROFILE.
+- Controlli dell'esercizio: `handSpan` (bloccante, sull'accordo più ampio) e `positionChanges`
+  (informativo, conta i salti melodici oltre l'apertura). Il lettore ABC ora legge gli accordi.
+- Scheda dell'allievo: sezione «Limiti fisici» con mano, apertura scelta per nome dell'intervallo e
+  misura in centimetri. Costruttore di intento: vincolo «Apertura della mano» e validazione dei
+  pattern intervallari.
+
+Scelte dove la richiesta lasciava margine:
+
+- Ogni passo di un pattern intervallare porta il segno (`+3`, `-2`); `0` ripete la nota; al
+  massimo 24 semitoni per passo.
+- L'esercizio è su un solo pentagramma: i controlli `handSpan` e `positionChanges` guardano tutte
+  le note, qualunque sia la mano del vincolo.
+- `LeapBeyondReach` considera solo il limite della mano destra; senza quel limite non scatta.
+
 ## Generazione con Ollama
 
 - Nuovo generatore `ollama`: chiede l'esercizio in ABC a ChatMusician tramite un server Ollama

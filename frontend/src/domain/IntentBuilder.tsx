@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ModelObject } from '../api/types'
 import { useStudio } from '../app/store'
 import { Field, NoteSelect, NumberInput, RhythmInput, Segmented, Select, TextInput } from './fields'
+import { INTERVAL_HINT, intervalName, maxLeap, parseIntervals } from './interval'
 import { RHYTHM_HINT } from './rhythm'
 import { useModelForm } from './useModelForm'
 
@@ -11,6 +12,7 @@ const CONSTRAINT_LABELS: Record<string, string> = {
   ExcludesPattern: 'Non deve contenere un pattern',
   RangeConstraint: 'Estensione delle note',
   RenderConstraint: 'Dimensione del pentagramma',
+  SpanConstraint: 'Apertura della mano',
 }
 const QUALITY_LABELS: Record<string, string> = {
   RHYTHMIC_COMPLEXITY: 'Complessità ritmica',
@@ -20,6 +22,7 @@ const QUALITY_LABELS: Record<string, string> = {
 }
 const LEVEL_LABELS: Record<string, string> = { LOW: 'Bassa', MEDIUM: 'Media', HIGH: 'Alta' }
 const STRENGTH_LABELS: Record<string, string> = { HARD: 'Obbligatorio', SOFT: 'Preferibile' }
+const HAND_LABELS: Record<string, string> = { LEFT: 'Sinistra', RIGHT: 'Destra' }
 const KIND_LABELS: Record<string, string> = { RHYTHM: 'Ritmico', INTERVAL: 'Intervallare', HARMONY: 'Armonico' }
 
 function PatternFields({ form, owner }: { form: ReturnType<typeof useModelForm>; owner: ModelObject }) {
@@ -32,6 +35,7 @@ function PatternFields({ form, owner }: { form: ReturnType<typeof useModelForm>;
     )
   }
   const rhythmic = pattern.attributes.kind === 'RHYTHM'
+  const intervals = parseIntervals(String(pattern.attributes.expression ?? ''))
   return (
     <>
       <Field label="Tipo di pattern">
@@ -41,6 +45,15 @@ function PatternFields({ form, owner }: { form: ReturnType<typeof useModelForm>;
         <span className="field-label">Pattern</span>
         {rhythmic ? (
           <RhythmInput label="Espressione del pattern" value={pattern.attributes.expression} onChange={(v) => form.set(pattern.id, 'expression', v)} />
+        ) : pattern.attributes.kind === 'INTERVAL' ? (
+          <>
+            <TextInput label="Espressione del pattern" value={pattern.attributes.expression} onChange={(v) => form.set(pattern.id, 'expression', v)} />
+            <p className={intervals.ok ? 'hint' : 'field-error'}>
+              {intervals.ok
+                ? `${INTERVAL_HINT} Salto più ampio: ${intervalName(maxLeap(intervals.steps))}.`
+                : `Pattern non valido: ${intervals.error}.`}
+            </p>
+          </>
         ) : (
           <TextInput label="Espressione del pattern" value={pattern.attributes.expression} onChange={(v) => form.set(pattern.id, 'expression', v)} />
         )}
@@ -91,6 +104,8 @@ export function IntentBuilder({ modelId }: { modelId: string }) {
       form.add(className, parent, {}, [{ feature: 'pattern', className: 'Pattern', attributes: { kind: 'RHYTHM' } }])
     } else if (className === 'RangeConstraint') {
       form.add(className, parent, { lowestMidi: 60, highestMidi: 72 })
+    } else if (className === 'SpanConstraint') {
+      form.add(className, parent, { hand: 'RIGHT', maxSimultaneousSemitones: 12, maxStretchInPosition: 12 })
     } else if (className === 'RenderConstraint') {
       form.add(className, parent, { staffScale: 1 })
     } else {
@@ -157,6 +172,19 @@ export function IntentBuilder({ modelId }: { modelId: string }) {
                 <>
                   <Field label="Nota più grave">{(id) => <NoteSelect id={id} value={constraint.attributes.lowestMidi} onChange={(v) => form.set(constraint.id, 'lowestMidi', v)} />}</Field>
                   <Field label="Nota più acuta">{(id) => <NoteSelect id={id} value={constraint.attributes.highestMidi} onChange={(v) => form.set(constraint.id, 'highestMidi', v)} />}</Field>
+                </>
+              )}
+              {constraint.eClass === 'SpanConstraint' && (
+                <>
+                  <Field label="Mano">
+                    {(id) => <Select id={id} value={constraint.attributes.hand} options={form.literals('SpanConstraint', 'hand')} labels={HAND_LABELS} onChange={(v) => form.set(constraint.id, 'hand', v)} />}
+                  </Field>
+                  <Field label="Intervallo massimo tra note insieme (semitoni)">
+                    {(id) => <NumberInput id={id} integer value={constraint.attributes.maxSimultaneousSemitones} onChange={(v) => form.set(constraint.id, 'maxSimultaneousSemitones', v ?? 0)} />}
+                  </Field>
+                  <Field label="Salto massimo senza spostare la mano (semitoni)">
+                    {(id) => <NumberInput id={id} integer value={constraint.attributes.maxStretchInPosition} onChange={(v) => form.set(constraint.id, 'maxStretchInPosition', v ?? 0)} />}
+                  </Field>
                 </>
               )}
               {constraint.eClass === 'RenderConstraint' && (

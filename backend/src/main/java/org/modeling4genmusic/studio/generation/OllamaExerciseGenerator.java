@@ -95,6 +95,8 @@ public class OllamaExerciseGenerator implements ExerciseGenerator {
                         + abc + ", used at least " + Math.max(1, number(constraint, "minOccurrences")) + " times."));
                 case "ExcludesPattern" -> rhythm(constraint)
                         .ifPresent(abc -> notes.add("It never uses the rhythm " + abc + "."));
+                case "SpanConstraint" -> notes.add("It is a single melodic line without chords, with no leap wider than "
+                        + number(constraint, "maxStretchInPosition") + " semitones.");
                 default -> {
                     // Rendering constraints do not concern the notes.
                 }

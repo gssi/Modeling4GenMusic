@@ -30,22 +30,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Runs the EVL scripts that {@code epsilon/validations.json} associates with a model. Nothing about the
- * domain is known here: scripts, model names and related models all come from that descriptor.
+ * domain is known here: scripts, model names and related models all come from that descriptor; the text
+ * of each script comes from the {@link RuleStore}.
  */
 @Component
 public class EvlValidator {
 
     private final MetamodelRegistry registry;
     private final List<ValidationProfile> profiles;
+    private final RuleStore rules;
 
-    public EvlValidator(MetamodelRegistry registry, ObjectMapper json) {
+    public EvlValidator(MetamodelRegistry registry, ObjectMapper json, RuleStore rules) {
         this.registry = registry;
+        this.rules = rules;
         try (InputStream in = Scripts.open("validations.json")) {
             this.profiles = json.readValue(in, new TypeReference<List<ValidationProfile>>() {
             });
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot read the validation descriptor", e);
         }
+    }
+
+    /** The scripts and what they apply to, in the order of the descriptor. */
+    public List<ValidationProfile> profiles() {
+        return profiles;
     }
 
     /** A diagnostic together with the live EVL result it comes from, needed to run its fixes. */
@@ -70,16 +78,24 @@ public class EvlValidator {
         Set<String> usedIds = new HashSet<>();
         for (ValidationProfile profile : profiles) {
             if (profile.appliesTo(metamodel, role)) {
-                run(profile, modelId, resource, findings, usedIds);
+                run(profile, rules.source(profile.script()), modelId, resource, findings, usedIds);
             }
         }
         return findings;
     }
 
-    private void run(ValidationProfile profile, String modelId, XMLResource resource, List<Finding> findings,
-            Set<String> usedIds) {
+    /** Runs one script with the given text instead of the stored one, to try a change before keeping it. */
+    public List<Finding> validateWith(ValidationProfile profile, String source, String modelId,
+            XMLResource resource) {
+        List<Finding> findings = new ArrayList<>();
+        run(profile, source, modelId, resource, findings, new HashSet<>());
+        return findings;
+    }
+
+    private void run(ValidationProfile profile, String source, String modelId, XMLResource resource,
+            List<Finding> findings, Set<String> usedIds) {
         EvlModule module = new EvlModule();
-        Scripts.parse(module, profile.script());
+        Scripts.parse(module, profile.script(), source);
         module.getContext().getModelRepository().addModel(model(profile.model(), resource));
         if (profile.related() != null) {
             for (ValidationProfile.Related related : profile.related()) {

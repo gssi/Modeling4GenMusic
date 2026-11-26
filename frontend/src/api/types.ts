@@ -72,6 +72,87 @@ export interface ModelHeader {
   version: number
 }
 
+export interface RuleSetRule {
+  name: string
+  severity: Severity
+  comment?: string
+  guard?: string
+  check?: string
+  message?: string
+  fixes: { title?: string; guard?: string; body?: string }[]
+  source: string
+  line: number
+}
+
+/** A validation script as the engine parses it. */
+export interface RuleSet {
+  script: string
+  metamodel: string
+  exceptRoles: string[]
+  /** Name of the validated model inside the script. */
+  model: string
+  related: { alias: string; metamodel: string; reference: string }[]
+  tools: string[]
+  source: string
+  problems: { line: number; column: number; reason: string }[]
+  contexts: { type: string; rules: RuleSetRule[] }[]
+  operations: { name: string; context?: string; comment?: string; source: string; line: number }[]
+  /** True when the script was edited and differs from the one shipped with the application. */
+  modified: boolean
+  /** Models on which a trial run stopped with an error; filled only by a check. */
+  failures: { modelId: string; modelName: string; message: string }[]
+}
+
+/** The transformation script as the engine parses it. */
+export interface TransformationScript {
+  script: string
+  inputs: { alias: string; metamodel: string }[]
+  outputs: { alias: string; metamodel: string }[]
+  tools: string[]
+  source: string
+  problems: RuleSet['problems']
+  rules: { name: string; from: string; to: string[]; comment?: string; guard?: string; source: string; line: number }[]
+  /** `pre` and `post` blocks, in the order they run. */
+  blocks: { kind: 'pre' | 'post'; name?: string; comment?: string; source: string; line: number }[]
+  operations: RuleSet['operations']
+  modified: boolean
+  failures: RuleSet['failures']
+}
+
+/** Whether the rule assistant can answer, and with which language model. */
+export interface AssistantStatus {
+  available: boolean
+  model: string
+  /** What to do when it is not available. */
+  reason?: string | null
+}
+
+/** A rule written by the assistant from a description, with the outcome of the checks that guard saving. */
+export interface RuleProposal {
+  rule: string
+  /** The script the request carried, with the rule added at the end. */
+  source: string
+  /** Line of `source` where the added part starts. */
+  line: number
+  problems: RuleSet['problems']
+  failures: RuleSet['failures']
+  attempts: number
+  seconds: number
+  model: string
+  /** For a validation rule that passes the checks: what it reports on the workspace models. */
+  effects?: { models: number; reports: { modelName: string; rule: string; elementId?: string; message: string }[] } | null
+}
+
+/** One saved state in the history of a model. */
+export interface ModelVersion {
+  version: number
+  name: string
+  role?: string
+  savedAt: string
+  origin?: 'CREATED' | 'IMPORTED' | 'SAVED' | 'FIXED' | 'DERIVED' | 'RESTORED'
+  restoredFrom?: number
+}
+
 export interface ModelDocument extends ModelHeader {
   roots: ModelObject[]
 }

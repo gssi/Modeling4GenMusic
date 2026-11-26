@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ex:ExerciseSpec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ex="http://music/exercise" xmlns:pr="http://music/profile" xmi:id="intent" key="G" meter="4/4" bars="8" requestedBpm="90">
+  <learner href="giulia.profile.xmi#giulia"/>
+  <constraints xsi:type="ex:ContainsPattern" xmi:id="c_contains_dotted">
+    <pattern xmi:id="p_dotted" expression="8. 16"/>
+  </constraints>
+  <constraints xsi:type="ex:ContainsPattern" xmi:id="c_contains_leap">
+    <pattern xmi:id="p_leap" kind="INTERVAL" expression="+12"/>
+  </constraints>
+  <qualityGoals xmi:id="qg_rhythm" level="MEDIUM"/>
+</ex:ExerciseSpec>

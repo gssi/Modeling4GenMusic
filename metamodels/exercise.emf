@@ -38,6 +38,13 @@ class RenderConstraint extends Constraint {
   attr double staffScale;
 }
 
+// What one hand can reach, from a physical limit of the learner.
+class SpanConstraint extends Constraint {
+  attr profile.Hand[1] hand;
+  attr int maxSimultaneousSemitones;   // widest interval between notes played together by that hand
+  attr int maxStretchInPosition;       // widest melodic leap without moving the hand
+}
+
 class Pattern {
   attr PatternKind kind;
   attr String expression;

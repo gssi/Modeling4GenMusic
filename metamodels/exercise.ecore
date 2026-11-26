@@ -33,6 +33,13 @@
   <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Constraint" name="RenderConstraint">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="staffScale" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
   </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Constraint" name="SpanConstraint">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="hand" lowerBound="1">
+      <eType href="profile.ecore#//Hand" xsi:type="ecore:EEnum"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="maxSimultaneousSemitones" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="maxStretchInPosition" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
+  </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="Pattern">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="kind" eType="#//PatternKind"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="expression" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>

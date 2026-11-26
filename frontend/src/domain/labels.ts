@@ -31,6 +31,19 @@ const WORDING: Record<string, MetamodelWording> = {
   'http://music/weaving': { plural: 'Tracce di derivazione', create: 'Nuova traccia di derivazione' },
 }
 
+const RULE_EXAMPLES: Record<string, string> = {
+  'profile.evl': 'avvisa se il tempo comodo dell’allievo è sotto i 40 bpm',
+  'intent.evl': 'avvisa se l’esercizio ha più di 16 battute',
+  'quality.evl': 'avvisa se un modello di qualità non ha nessun binding',
+  'weaving.evl': 'avvisa se un link non ha una motivazione scritta',
+  'derive.etl': 'dopo le regole, se la specifica ha più di 12 battute riducile a 12 e registra il motivo nella traccia',
+}
+
+/** A request one could make to the rule assistant for a script, to show how to phrase it. */
+export function ruleExample(script: string): string | undefined {
+  return RULE_EXAMPLES[script]
+}
+
 export function wording(nsURI: string, fallbackName: string): MetamodelWording {
   return WORDING[nsURI] ?? { plural: fallbackName, create: `Nuovo modello ${fallbackName}` }
 }

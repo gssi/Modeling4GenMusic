@@ -63,7 +63,13 @@ class RoundTripTest {
                         List.of(leaf("s1", "Skill", Map.of("area", "RHYTHM", "level", 2, "confidence", 0.7)),
                                 leaf("s2", "Skill",
                                         Map.of("area", "PITCH_READING", "level", 3, "confidence", 0.8))),
-                        "needs", List.of(leaf("n1", "LowVision", Map.of("minStaffScale", 1.5))), "patterns",
+                        "needs",
+                        List.of(leaf("n1", "LowVision", Map.of("minStaffScale", 1.5)),
+                                leaf("n2", "HandSpanLimit",
+                                        Map.of("hand", "RIGHT", "handSpanCm", 16.0, "maxStretchSemitones", 9)),
+                                leaf("n3", "HandSpanLimit",
+                                        Map.of("hand", "LEFT", "handSpanCm", 0.0, "maxStretchSemitones", 10))),
+                        "patterns",
                         List.of(leaf("p1", "PatternMastery", Map.of("expression", "8. 16", "status", "LEARNING")))),
                 null));
     }
@@ -73,11 +79,13 @@ class RoundTripTest {
         ObjectNode contains = node("c1", "ContainsPattern",
                 Map.of("strength", "SOFT", "weight", 1.0, "minOccurrences", 3), Map.of("pattern", List.of(pattern)),
                 null);
+        ObjectNode span = leaf("c2", "SpanConstraint", Map.of("strength", "HARD", "weight", 1.0, "hand", "RIGHT",
+                "maxSimultaneousSemitones", 9, "maxStretchInPosition", 9));
         ObjectNode goal = leaf("g1", "QualityGoal", Map.of("attribute", "RHYTHMIC_COMPLEXITY", "level", "MEDIUM"));
         return List.of(node("spec", "ExerciseSpec",
                 Map.of("instrument", "PIANO", "key", "G", "meter", "4/4", "bars", 8, "maxBpm", 0, "requestedBpm",
                         90),
-                Map.of("constraints", List.of(contains), "qualityGoals", List.of(goal)),
+                Map.of("constraints", List.of(contains, span), "qualityGoals", List.of(goal)),
                 Map.of("learner", List.of(new Ref(learnerModel, "giulia", null)))));
     }
 

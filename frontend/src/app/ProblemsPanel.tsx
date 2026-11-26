@@ -6,7 +6,9 @@ const LABEL: Record<Severity, string> = { ERROR: 'Errore', WARNING: 'Avviso', IN
 
 export function ProblemsPanel({ modelId }: { modelId: string | null }) {
   const model = useStudio((s) => (modelId ? s.open[modelId] : undefined))
-  const { select, applyFix } = useStudio.getState()
+  const known = useStudio((s) => s.rules)
+  const { select, applyFix, openRules } = useStudio.getState()
+  const isRule = (name: string) => !!known?.some((set) => set.contexts.some((c) => c.rules.some((r) => r.name === name)))
 
   let body
   if (!modelId || !model) {
@@ -37,6 +39,11 @@ export function ProblemsPanel({ modelId }: { modelId: string | null }) {
                 {d.constraint}
               </span>
             </button>
+            {isRule(d.constraint) && (
+              <button type="button" className="problem-rule" onClick={() => openRules(d.constraint)} title={`Mostra la regola ${d.constraint}`}>
+                Vedi la regola
+              </button>
+            )}
             {d.fixes.map((fix, index) => (
               <button key={fix.title} type="button" className="problem-fix" onClick={() => void applyFix(modelId, d.id, index)}>
                 {fix.title}

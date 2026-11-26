@@ -1,5 +1,6 @@
 package org.modeling4genmusic.studio;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -83,6 +84,59 @@ class ModelApiTest {
 
         mvc.perform(delete("/api/models/crud-test")).andExpect(status().isNoContent());
         mvc.perform(get("/api/models/crud-test")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void keepsTheHistoryOfAModelAndRestoresAPastVersion() throws Exception {
+        mvc.perform(post("/api/models").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"metamodel\":\"http://music/profile\",\"name\":\"History Test\"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value("history-test"));
+        String learner = """
+                {"version":%d,"roots":[{"id":"l","eClass":"Learner",
+                  "attributes":{"name":"anna","comfortableBpm":%d}}]}""";
+        mvc.perform(put("/api/models/history-test").contentType(MediaType.APPLICATION_JSON)
+                .content(learner.formatted(1, 60))).andExpect(status().isOk());
+        mvc.perform(put("/api/models/history-test").contentType(MediaType.APPLICATION_JSON)
+                .content(learner.formatted(2, 84))).andExpect(status().isOk());
+
+        mvc.perform(get("/api/models/history-test/versions")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].version", contains(3, 2, 1)))
+                .andExpect(jsonPath("$[*].origin", contains("SAVED", "SAVED", "CREATED")))
+                .andExpect(jsonPath("$[0].savedAt").isNotEmpty());
+        mvc.perform(get("/api/models/history-test/versions/2")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(2))
+                .andExpect(jsonPath("$.roots[0].attributes.comfortableBpm").value(60));
+        mvc.perform(get("/api/models/history-test/versions/1")).andExpect(jsonPath("$.roots", hasSize(0)));
+        mvc.perform(get("/api/models/history-test/versions/9")).andExpect(status().isNotFound());
+
+        // restoring never rewrites the past: it adds a version with the old content
+        mvc.perform(post("/api/models/history-test/versions/3/restore")).andExpect(status().isBadRequest());
+        mvc.perform(post("/api/models/history-test/versions/2/restore")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.version").value(4))
+                .andExpect(jsonPath("$.roots[0].attributes.comfortableBpm").value(60));
+        mvc.perform(get("/api/models/history-test")).andExpect(jsonPath("$.version").value(4))
+                .andExpect(jsonPath("$.roots[0].attributes.comfortableBpm").value(60));
+        mvc.perform(get("/api/models/history-test/versions"))
+                .andExpect(jsonPath("$[*].version", contains(4, 3, 2, 1)))
+                .andExpect(jsonPath("$[0].origin").value("RESTORED"))
+                .andExpect(jsonPath("$[0].restoredFrom").value(2));
+        mvc.perform(get("/api/models/history-test/versions/3"))
+                .andExpect(jsonPath("$.roots[0].attributes.comfortableBpm").value(84));
+
+        // a model changed on disk, or saved before the history existed, is recorded when first asked
+        Path xmi = workspace.resolve("default/history-test.xmi");
+        Files.writeString(xmi, Files.readString(xmi).replace("comfortableBpm=\"60\"", "comfortableBpm=\"66\""));
+        mvc.perform(get("/api/models/history-test/versions/4"))
+                .andExpect(jsonPath("$.roots[0].attributes.comfortableBpm").value(66));
+
+        // the history goes away with the model and does not come back with a namesake
+        mvc.perform(delete("/api/models/history-test")).andExpect(status().isNoContent());
+        mvc.perform(get("/api/models/history-test/versions")).andExpect(status().isNotFound());
+        mvc.perform(post("/api/models").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"metamodel\":\"http://music/profile\",\"name\":\"History Test\"}"))
+                .andExpect(status().isCreated());
+        mvc.perform(get("/api/models/history-test/versions")).andExpect(jsonPath("$[*].version", contains(1)));
+        mvc.perform(get("/api/models")).andExpect(jsonPath("$[?(@.id=='.history')]", hasSize(0)));
     }
 
     @Test

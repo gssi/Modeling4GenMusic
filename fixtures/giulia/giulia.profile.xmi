@@ -3,6 +3,7 @@
   <skills xmi:id="skill_rhythm" level="2" confidence="0.7"/>
   <skills xmi:id="skill_pitch" area="PITCH_READING" level="3" confidence="0.8"/>
   <needs xsi:type="pr:LowVision" xmi:id="need_lowvision" minStaffScale="1.5"/>
+  <needs xsi:type="pr:HandSpanLimit" xmi:id="need_handspan" hand="RIGHT" handSpanCm="16.0" maxStretchSemitones="9"/>
   <patterns xmi:id="pm_quarter" expression="4"/>
   <patterns xmi:id="pm_eighths" expression="8 8"/>
   <patterns xmi:id="pm_dotted" expression="8. 16" status="LEARNING"/>

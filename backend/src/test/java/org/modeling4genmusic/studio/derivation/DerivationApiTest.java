@@ -1,8 +1,12 @@
 package org.modeling4genmusic.studio.derivation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.hasSize;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -22,6 +26,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.modeling4genmusic.studio.model.ModelDocument;
 import org.modeling4genmusic.studio.model.ModelDocument.ObjectNode;
 import org.modeling4genmusic.studio.model.ModelDocument.Ref;
+import org.modeling4genmusic.studio.epsilon.Scripts;
 import org.modeling4genmusic.studio.workspace.WorkspaceStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -112,7 +117,7 @@ class DerivationApiTest {
 
         List<ObjectNode> constraints = spec.contents().get("constraints");
         assertThat(constraints).extracting(ObjectNode::id).containsExactly("c_contains_1", "c_excludes_1",
-                "c_range_1", "c_render_1");
+                "c_range_1", "c_render_1", "c_span_1");
         ObjectNode contains = byClass(constraints, "ContainsPattern");
         assertThat(contains.attributes()).containsEntry("strength", "HARD").containsEntry("minOccurrences", 3);
         assertThat(contains.contents().get("pattern").get(0).attributes()).containsEntry("expression", "8. 16")
@@ -124,6 +129,10 @@ class DerivationApiTest {
                 .containsEntry("lowestMidi", 60).containsEntry("highestMidi", 79);
         assertThat(byClass(constraints, "RenderConstraint").attributes()).containsEntry("strength", "HARD")
                 .containsEntry("staffScale", 1.5);
+
+        assertThat(byClass(constraints, "SpanConstraint").attributes()).containsEntry("strength", "HARD")
+                .containsEntry("hand", "RIGHT").containsEntry("maxSimultaneousSemitones", 9)
+                .containsEntry("maxStretchInPosition", 9);
 
         List<ObjectNode> goals = spec.contents().get("qualityGoals");
         assertThat(goals).extracting(ObjectNode::id).containsExactly("qg_rhythmic_complexity",
@@ -164,13 +173,58 @@ class DerivationApiTest {
 
         assertThat(links).extracting(l -> l.attributes().get("rule")).contains("CopyIntent",
                 "InstrumentFromLearner", "TempoLimit", "StrengthenLearningPattern", "ExcludeNotIntroduced",
-                "RangeFromLearner", "RenderForLowVision", "CopyQualityGoals", "FocusOtherDimensionsLow",
-                "ResolveThresholds");
+                "RangeFromLearner", "RenderForLowVision", "SpanFromHandLimit", "CopyQualityGoals",
+                "FocusOtherDimensionsLow", "ResolveThresholds");
+        ObjectNode span = links.stream().filter(l -> "SpanFromHandLimit".equals(l.attributes().get("rule")))
+                .findFirst().orElseThrow();
+        assertThat(span.eClass()).isEqualTo("Derivation");
+        assertThat(span.attributes()).containsEntry("rationale",
+                "Limite di apertura della mano destra: massimo 9 semitoni (sesta maggiore)");
+        assertThat(span.references().get("target").get(0).id()).isEqualTo("c_span_1");
+        ObjectNode spanSource = span.contents().get("sources").get(0);
+        assertThat(spanSource.attributes()).containsEntry("origin", "PROFILE").containsEntry("feature",
+                "maxStretchSemitones");
+        assertThat(spanSource.references().get("element"))
+                .containsExactly(new Ref("giulia.profile", "need_handspan", null));
 
         mvc.perform(post("/api/models/giulia.intent.weaving/validate")).andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
         // The derived spec is not an intent: the intent rules do not apply to it.
         mvc.perform(post("/api/models/giulia.intent.derived/validate")).andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void anOctaveLeapIsWarnedAboutAndTheSpecStillGetsTheSpanConstraint() throws Exception {
+        byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia/giulia-leap.intent.xmi"));
+        if (store.exists(WS, "giulia-leap.intent")) {
+            store.delete(WS, "giulia-leap.intent");
+        }
+        mvc.perform(multipart("/api/models/import")
+                .file(new MockMultipartFile("file", "giulia-leap.intent.xmi", "text/xml", bytes)).param("role", "intent"))
+                .andExpect(status().isCreated());
+
+        mvc.perform(post("/api/models/giulia-leap.intent/validate")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.constraint=='LeapBeyondReach')].severity").value("WARNING"))
+                .andExpect(jsonPath("$[?(@.constraint=='LeapBeyondReach')].elementId").value("c_contains_leap"))
+                .andExpect(jsonPath("$[?(@.constraint=='LeapBeyondReach')].fixes[*]", hasSize(0)))
+                .andExpect(jsonPath("$[?(@.constraint=='LeapBeyondReach')].message").value(org.hamcrest.Matchers.hasItem(
+                        org.hamcrest.Matchers.allOf(org.hamcrest.Matchers.containsString("12 semitoni (ottava)"),
+                                org.hamcrest.Matchers.containsString("9 semitoni, sesta maggiore"),
+                                org.hamcrest.Matchers.containsString("cambio di posizione")))));
+
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON)
+                .content(DERIVE.replace("\"giulia.intent\"", "\"giulia-leap.intent\"")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.derivedSpecModelId").value("giulia-leap.intent.derived"))
+                .andExpect(jsonPath("$.diagnostics[*].constraint",
+                        org.hamcrest.Matchers.containsInAnyOrder("LeapBeyondReach", "TempoAboveComfort")));
+        List<ObjectNode> constraints = store.get(WS, "giulia-leap.intent.derived").roots().get(0).contents()
+                .get("constraints");
+        assertThat(byClass(constraints, "SpanConstraint").attributes()).containsEntry("hand", "RIGHT")
+                .containsEntry("maxSimultaneousSemitones", 9).containsEntry("maxStretchInPosition", 9);
+        assertThat(constraints).filteredOn(c -> c.eClass().equals("ContainsPattern")).hasSize(2);
+        mvc.perform(post("/api/models/giulia-leap.intent.weaving/validate")).andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
@@ -228,5 +282,69 @@ class DerivationApiTest {
         mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content("""
                 {"learnerModelId":"nope","teacherIntentModelId":"giulia.intent","qualityModelId":"piano.quality"}"""))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void theTransformationScriptIsDescribedCheckedEditedAndRestored() throws Exception {
+        mvc.perform(get("/api/derivations/script")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.script").value("derive.etl")).andExpect(jsonPath("$.modified").value(false))
+                .andExpect(jsonPath("$.problems", hasSize(0)))
+                .andExpect(jsonPath("$.inputs[*].alias", contains("L", "T", "Q")))
+                .andExpect(jsonPath("$.outputs[*].alias", contains("S", "W")))
+                .andExpect(jsonPath("$.rules[0].name").value("CopyIntent"))
+                .andExpect(jsonPath("$.rules[0].from").value("T!ExerciseSpec"))
+                .andExpect(jsonPath("$.rules[0].to", contains("S!ExerciseSpec")))
+                .andExpect(jsonPath("$.rules[0].guard").value("t = intent()"))
+                .andExpect(jsonPath("$.rules[0].comment", containsString("The spec starts as a copy")))
+                .andExpect(jsonPath("$.rules[*].name", hasItem("SpanFromHandLimit")))
+                .andExpect(jsonPath("$.blocks[*].kind", hasItems("pre", "post")))
+                .andExpect(jsonPath("$.blocks[*].name", hasItem("TempoLimit")));
+
+        String original = Scripts.read("derive.etl");
+        java.util.function.Function<String, String> body = source -> {
+            try {
+                return json.writeValueAsString(java.util.Map.of("source", source));
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        };
+
+        // a syntax error is reported with its position and nothing is saved
+        String broken = original.replace("rule CopyIntent\n  transform t", "rule CopyIntent\n  transfrom t");
+        mvc.perform(post("/api/derivations/script/check").contentType(MediaType.APPLICATION_JSON)
+                .content(body.apply(broken))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.problems[0].line").value(39)).andExpect(jsonPath("$.rules", hasSize(0)));
+        mvc.perform(put("/api/derivations/script").contentType(MediaType.APPLICATION_JSON).content(body.apply(broken)))
+                .andExpect(status().isUnprocessableEntity());
+
+        // right syntax, wrong property: found by deriving on trial from the workspace models
+        String wrong = original.replace("  s.key = t.key;", "  s.key = t.noSuchThing;");
+        mvc.perform(post("/api/derivations/script/check").contentType(MediaType.APPLICATION_JSON)
+                .content(body.apply(wrong))).andExpect(status().isOk()).andExpect(jsonPath("$.problems", hasSize(0)))
+                .andExpect(jsonPath("$.failures[0].modelId").value("giulia.intent"))
+                .andExpect(jsonPath("$.failures[0].message", containsString("Property 'noSuchThing' not found")));
+        mvc.perform(put("/api/derivations/script").contentType(MediaType.APPLICATION_JSON).content(body.apply(wrong)))
+                .andExpect(status().isUnprocessableEntity());
+        // the trial leaves nothing behind
+        assertThat(store.exists(WS, "giulia.intent.derived")).isFalse();
+
+        // a sound change is kept and changes what the derivation produces
+        String changed = original.replace("operation LEARNING_MIN_OCCURRENCES() : Integer { return 3; }",
+                "operation LEARNING_MIN_OCCURRENCES() : Integer { return 5; }");
+        mvc.perform(put("/api/derivations/script").contentType(MediaType.APPLICATION_JSON).content(body.apply(changed)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.modified").value(true));
+        mvc.perform(post("/api/models/giulia.intent/fixes").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"diagnosticId\":\"giulia.intent#TempoAboveComfort@intent\",\"fixIndex\":0}"));
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/models/giulia.intent.derived")).andExpect(jsonPath(
+                "$.roots[0].contents.constraints[?(@.eClass=='ContainsPattern')].attributes.minOccurrences", contains(5)));
+
+        mvc.perform(delete("/api/derivations/script")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.modified").value(false));
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/models/giulia.intent.derived")).andExpect(jsonPath(
+                "$.roots[0].contents.constraints[?(@.eClass=='ContainsPattern')].attributes.minOccurrences", contains(3)));
     }
 }

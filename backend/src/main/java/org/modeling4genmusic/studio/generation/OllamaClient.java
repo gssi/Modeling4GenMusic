@@ -7,6 +7,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.modeling4genmusic.studio.api.ApiException;
@@ -16,7 +17,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/** Minimal client of the Ollama HTTP API: which models are there, and plain text completion. */
+/** Minimal client of the Ollama HTTP API: which models are there, plain text completion and chat. */
 @Component
 public class OllamaClient {
 
@@ -39,7 +40,11 @@ public class OllamaClient {
 
     /** Asks the server whether it is up and has the configured model. Never throws. */
     public ExerciseGenerator.Availability availability() {
-        String model = properties.model();
+        return availability(properties.model());
+    }
+
+    /** Asks the server whether it is up and has the given model. Never throws. */
+    public ExerciseGenerator.Availability availability(String model) {
         try {
             HttpResponse<String> response = http.send(
                     HttpRequest.newBuilder(uri("/api/tags")).timeout(Duration.ofSeconds(3)).GET().build(),
@@ -95,6 +100,49 @@ public class OllamaClient {
             return answer.path("response").asText("");
         } catch (java.net.http.HttpTimeoutException e) {
             throw unavailable("Ollama non ha risposto entro " + properties.timeout().toSeconds() + " secondi");
+        } catch (IOException | IllegalArgumentException e) {
+            throw unavailable("Ollama non risponde su " + properties.baseUrl() + ": avvialo con «ollama serve»");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw unavailable("Richiesta a Ollama interrotta");
+        }
+    }
+
+    /** One turn of a conversation: {@code role} is {@code system}, {@code user} or {@code assistant}. */
+    public record Message(String role, String content) {
+    }
+
+    /**
+     * Asks a model to continue a conversation, using its own chat template.
+     *
+     * @param model       name of the model, as listed by {@code ollama list}
+     * @param temperature sampling temperature
+     * @param timeout     longest wait for the answer
+     * @param maxTokens   upper bound of the answer length
+     */
+    public String chat(String model, List<Message> messages, double temperature, Duration timeout, int maxTokens) {
+        Map<String, Object> options = new LinkedHashMap<>();
+        options.put("temperature", temperature);
+        options.put("num_predict", maxTokens);
+        options.put("num_ctx", 16384);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        body.put("messages", messages);
+        body.put("stream", false);
+        body.put("options", options);
+        try {
+            HttpResponse<String> response = http.send(HttpRequest.newBuilder(uri("/api/chat")).timeout(timeout)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            JsonNode answer = json.readTree(response.body());
+            if (response.statusCode() != 200) {
+                throw unavailable("Ollama non ha risposto alla richiesta: "
+                        + answer.path("error").asText("errore " + response.statusCode()));
+            }
+            return answer.path("message").path("content").asText("");
+        } catch (java.net.http.HttpTimeoutException e) {
+            throw unavailable("Ollama non ha risposto entro " + timeout.toSeconds() + " secondi");
         } catch (IOException | IllegalArgumentException e) {
             throw unavailable("Ollama non risponde su " + properties.baseUrl() + ": avvialo con «ollama serve»");
         } catch (InterruptedException e) {

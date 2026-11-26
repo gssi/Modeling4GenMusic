@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Dialog } from './app/Dialog'
 import { ProblemsPanel } from './app/ProblemsPanel'
-import { DERIVE_TAB, useStudio } from './app/store'
+import { VersionsButton } from './app/VersionHistory'
+import { RulesView } from './app/RulesView'
+import { DERIVE_TAB, RULES_TAB, useStudio } from './app/store'
 import { metamodelColor } from './app/theme'
 import { WorkspacePanel } from './app/WorkspacePanel'
 import { roleOptions } from './domain/labels'
@@ -65,6 +67,7 @@ function ModelPane({ modelId, beside }: { modelId: string; beside?: boolean }) {
             <button type="button" className="primary" onClick={() => void save(modelId)} disabled={!model.dirty}>
               Salva
             </button>
+            <VersionsButton modelId={modelId} />
             <span className="toolbar-gap" />
             <button type="button" onClick={() => undo(modelId)} disabled={!model.past.length}>
               Annulla
@@ -78,7 +81,7 @@ function ModelPane({ modelId, beside }: { modelId: string; beside?: boolean }) {
           </div>
         </div>
       ) : (
-        <Canvas key={modelId} modelId={modelId} decoration={decoration} />
+        <Canvas key={modelId} modelId={modelId} decoration={decoration} toolbarExtra={<VersionsButton modelId={modelId} />} />
       )}
     </section>
   )
@@ -124,7 +127,7 @@ export default function App() {
   const summaries = useStudio((s) => s.summaries)
   const notice = useStudio((s) => s.notice)
   const pending = useStudio((s) => s.pendingPlacement)
-  const { init, activate, closeTab, notify, requestAdd, placePending, save, openDerivation } = useStudio.getState()
+  const { init, activate, closeTab, notify, requestAdd, placePending, save, openDerivation, openRules } = useStudio.getState()
 
   useEffect(() => {
     void init()
@@ -182,7 +185,7 @@ export default function App() {
   const diagram = !!active && (viewMode[active.doc.id] ?? 'diagram') === 'diagram'
   const beside = split && split !== activeId && open[split] ? split : null
   const activeProvenance = active ? provenance[active.doc.id] : undefined
-  const tabName = (id: string) => (id === DERIVE_TAB ? 'Derivazione' : (open[id]?.doc.name ?? id))
+  const tabName = (id: string) => (id === DERIVE_TAB ? 'Derivazione' : id === RULES_TAB ? 'Regole' : (open[id]?.doc.name ?? id))
 
   return (
     <div className="shell">
@@ -190,6 +193,9 @@ export default function App() {
         <h1>Music Learner Modeling Studio</h1>
         <button type="button" className="header-action" onClick={openDerivation}>
           Deriva un esercizio
+        </button>
+        <button type="button" className="header-action" onClick={() => openRules()}>
+          Regole
         </button>
         <div className={`notice${notice ? ` is-${notice.kind}` : ''}`} role="status" aria-live="polite">
           {notice && (
@@ -249,6 +255,10 @@ export default function App() {
         {activeId === DERIVE_TAB ? (
           <div className="form-scroll">
             <DerivationView />
+          </div>
+        ) : activeId === RULES_TAB ? (
+          <div className="form-scroll">
+            <RulesView />
           </div>
         ) : active ? (
           <div className={`panes${beside ? ' is-split' : ''}`}>

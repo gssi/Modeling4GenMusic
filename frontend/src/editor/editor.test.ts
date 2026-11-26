@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { canStartConnection, connectableReferences, containerSlots } from './connections'
+import { diffRoots, isEmptyDiff } from './diff'
 import { parallelLanes, projectGraph, proxyNodeId } from './graph'
 import { autoLayout, nodeSize, placeNewNode, pushApart } from './layout'
 import { canBeRoot, conformsTo, instantiate } from './metamodel'
@@ -212,5 +213,32 @@ describe('automatic layout', () => {
     const [learner] = projectGraph(giuliaProfile).nodes
     expect(nodeSize(learner).height).toBe(36 + 5 * 22 + 12)
     expect(nodeSize(learner).width).toBeGreaterThanOrEqual(168)
+  })
+})
+
+describe('difference between two versions of a model', () => {
+  it('finds nothing between a model and itself', () => {
+    expect(isEmptyDiff(diffRoots(giuliaProfile, giuliaProfile))).toBe(true)
+  })
+
+  it('reports added and removed objects with their content, and changed values', () => {
+    const faster = setAttribute(giuliaProfile, 'giulia', 'comfortableBpm', 84)
+    const after = removeObjects(faster, ['skill_rhythm'])
+    const diff = diffRoots(giuliaProfile, after)
+    expect(diff.added).toEqual([])
+    expect(diff.removed.map((o) => o.id)).toEqual(['skill_rhythm'])
+    expect(diff.changed).toHaveLength(1)
+    expect(diff.changed[0].object.id).toBe('giulia')
+    expect(diff.changed[0].attributes).toEqual([{ name: 'comfortableBpm', before: 72, after: 84 }])
+    // read the other way round, what was removed is added
+    expect(diffRoots(after, giuliaProfile).added.map((o) => o.id)).toEqual(['skill_rhythm'])
+  })
+
+  it('notices a reference that points elsewhere', () => {
+    const after = removeObjects(giuliaIntent, [])
+    const learner = object(giuliaIntent, 'intent').references.learner[0]
+    const moved = addReference(after, 'intent', 'learner', { ...learner, id: 'someone-else' })
+    const diff = diffRoots(giuliaIntent, moved)
+    expect(diff.changed.map((c) => [c.object.id, c.references])).toEqual([['intent', ['learner']]])
   })
 })

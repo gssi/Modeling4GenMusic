@@ -25,6 +25,13 @@ class LowVision extends Need {
   attr double minStaffScale;
 }
 
+// Functional limit, not a diagnosis: how far the hand comfortably opens at the keyboard.
+class HandSpanLimit extends Need {
+  attr Hand[1] hand;
+  attr double handSpanCm;              // thumb to little finger, optional and informative only
+  attr int[1] maxStretchSemitones;     // widest interval covered comfortably (9 = major sixth)
+}
+
 class PatternMastery {
   attr String expression;
   attr Mastery status;
@@ -34,6 +41,11 @@ enum Instrument {
   PIANO = 0;
   GUITAR = 1;
   FLUTE = 2;
+}
+
+enum Hand {
+  LEFT = 0;
+  RIGHT = 1;
 }
 
 enum SkillArea {

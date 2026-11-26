@@ -29,7 +29,7 @@ metamodels/   metamodelli .ecore e .emf, diagrammi in img/
 backend/      Spring Boot: modelli EMF, persistenza, validazione (regole in src/main/resources/epsilon/)
 frontend/     React + Vite: editor generico in src/editor/, parti di dominio in src/domain/
 fixtures/     modelli XMI di esempio (Giulia)
-workspace/    modelli creati a runtime (non versionati)
+workspace/    modelli creati a runtime, con la loro cronologia (fuori da git)
 docs/         changelog e ADR
 ```
 
@@ -90,6 +90,97 @@ Ogni modello `id` di un workspace è fatto di tre file in `workspace/<workspace>
 - `id.xmi`: il modello, con `xmi:id` stabili; i riferimenti ad altri modelli sono href relativi;
 - `id.meta.json`: nome, metamodello, versione (lock ottimistico) e ruolo;
 - `id.layout.json`: posizioni dei nodi nel diagramma.
+
+### Versioni
+
+Ogni salvataggio (dall'editor, da una correzione rapida, da una derivazione, da un'importazione)
+lascia una copia in `workspace/<workspace>/.history/<id>/`: `N.xmi` con il contenuto della versione
+`N` e `N.json` con data e origine. Il pulsante «Versioni» della barra del modello le elenca,
+confronta quella scelta con il modello aperto e la ripristina. Il ripristino aggiunge una nuova
+versione con il vecchio contenuto: la cronologia non viene mai riscritta.
+
+- Si conservano le ultime 50 versioni di ogni modello (`studio.history-size`).
+- La cronologia è per singolo modello: ripristinare un profilo non riporta indietro gli intenti
+  che lo citano. Nome, tipo e disposizione del diagramma restano quelli attuali.
+- Eliminare un modello elimina anche la sua cronologia.
+- API: `GET /api/models/{id}/versions`, `GET /api/models/{id}/versions/{n}`,
+  `POST /api/models/{id}/versions/{n}/restore`.
+
+## Regole di validazione
+
+Le regole stanno in `backend/src/main/resources/epsilon/*.evl`; `validations.json` dice a quali
+modelli si applica ogni script. «Regole», in alto, le mostra: per
+ogni script le regole raggruppate per classe, con gravità, condizione (`guard`), controllo
+(`check`), messaggio e correzioni rapide, più le operazioni di supporto e il sorgente completo.
+Da un problema, «Vedi la regola» porta alla regola che lo ha segnalato.
+
+La struttura mostrata è quella che restituisce il parser EVL di Epsilon, lo stesso che esegue gli
+script: uno script con errori di sintassi compare con riga, colonna e motivo di ogni errore al
+posto delle regole.
+
+«Modifica» apre il testo di uno script. Mentre scrivi il server lo controlla in due passi, e si
+salva solo se passano entrambi:
+
+1. la sintassi, con il parser EVL: ogni errore ha riga, colonna e motivo;
+2. una prova: le regole vengono eseguite sui modelli del workspace a cui si applicano. È il solo
+   modo di scoprire una proprietà o un'operazione inesistente, che per il parser è sintassi
+   corretta; un errore in una regola che nessun modello presente fa scattare può sfuggire.
+
+Lo script modificato è salvato in `workspace/.rules/<script>` e sostituisce quello fornito con
+l'applicazione, che non viene toccato; «Ripristina le originali» lo rimuove. Dopo un salvataggio
+i modelli aperti vengono validati di nuovo.
+
+Uno script EVL può eseguire codice sul server (EOL sa chiamare classi Java): chi può modificare le
+regole può farlo. L'editor non ha autenticazione, quindi va usato in locale o su una rete fidata.
+
+API: `GET /api/rules`, `POST /api/rules/{script}/check`, `PUT /api/rules/{script}`,
+`DELETE /api/rules/{script}`.
+
+### Assistente per scrivere le regole
+
+Nell'editor di ogni script, «Descrivi la regola» traduce una descrizione in italiano in una regola
+EVL (o ETL per `derive.etl`). La scrive un modello linguistico locale servito da Ollama, lo stesso
+server della generazione musicale; nulla esce dalla macchina.
+
+```sh
+ollama serve                    # se non è già attivo
+ollama pull qwen2.5-coder:14b   # circa 9 GB, una volta sola
+```
+
+Come lavora:
+
+1. Al modello vanno le classi dei metamodelli che lo script vede, le operazioni e gli strumenti
+   che può chiamare e alcune regole dello script come esempio; tutto è letto dai metamodelli e
+   dagli script, non scritto a mano.
+2. La regola proposta viene aggiunta in fondo allo script e passata agli stessi due controlli del
+   salvataggio (sintassi, prova sui modelli). Se non li supera, il modello viene interrogato di
+   nuovo con gli errori, fino a tre volte.
+3. L'anteprima mostra la regola, l'esito dei controlli e, per le regole di validazione, cosa
+   segnalerebbe sui modelli del workspace. «Inserisci nel testo» la mette nell'editor; il
+   salvataggio resta quello manuale. L'assistente non salva mai da solo.
+
+I controlli garantiscono che la regola giri, non che faccia ciò che è stato chiesto: va letta. Per
+questo l'anteprima dice cosa segnalerebbe, ed è il modo più rapido di accorgersi di una regola
+che segnala tutto o niente. Nelle prove sulle fixture di Giulia, 8 richieste di validazione su 8
+e 4 di derivazione su 4 hanno dato una regola che supera i controlli (da 2 a 30 secondi); a
+leggerle, circa una su quattro non faceva esattamente ciò che era stato chiesto.
+
+Impostazioni: `studio.assistant.model`, `.timeout`, `.temperature`, `.max-attempts`.
+API: `GET /api/assistant`, `POST /api/assistant/rules`.
+
+### Regole di derivazione
+
+La stessa scheda mostra `derive.etl`, la trasformazione che costruisce la specifica: le regole che
+creano elementi (da quale classe, quali classi creano, quando si applicano), i blocchi `pre` e
+`post`, le operazioni e il sorgente. Si modifica come gli script di validazione, con gli stessi
+due controlli; qui la prova è una derivazione eseguita, senza salvare nulla, su ogni intento del
+workspace con il profilo che cita e un modello di qualità. Se la trasformazione rifiuta un
+ingresso con un suo `throw` (per esempio un profilo senza allievo) non è un errore dello script.
+
+Le derivazioni già fatte non cambiano: per applicare le nuove regole va rifatto «Deriva».
+
+API: `GET /api/derivations/script`, `POST /api/derivations/script/check`,
+`PUT /api/derivations/script`, `DELETE /api/derivations/script`.
 
 ## Dal profilo all'esercizio
 

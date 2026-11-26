@@ -7,6 +7,8 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.Normalizer;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -38,21 +40,27 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
  * File-system persistence of the models. Each model {@code id} of a workspace is stored as
  * {@code id.xmi} (semantics only), {@code id.meta.json} (name, metamodel, version, role) and
  * {@code id.layout.json} (diagram positions). References between models are relative hrefs.
+ * <p>
+ * Every save also leaves a copy in {@code .history/id/}: {@code N.xmi} with the content of version
+ * {@code N} and {@code N.json} with its {@link ModelVersion}. Only the most recent ones are kept.
  */
 @Component
 public class WorkspaceStore {
 
     private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
     private static final Map<String, Object> XMI_OPTIONS = Map.of(XMLResource.OPTION_ENCODING, "UTF-8");
+    private static final String HISTORY_DIR = ".history";
 
     private final Path root;
     private final MetamodelRegistry registry;
     private final ObjectMapper json;
+    private final int historySize;
 
     public WorkspaceStore(StudioProperties properties, MetamodelRegistry registry, ObjectMapper json) {
         this.root = properties.workspacePath().toAbsolutePath().normalize();
         this.registry = registry;
         this.json = json;
+        this.historySize = properties.historyLimit();
     }
 
     // ---------------------------------------------------------------- queries
@@ -133,7 +141,7 @@ public class WorkspaceStore {
         String id = uniqueId(workspaceId, slug(name));
         XMLResource resource = (XMLResource) newResourceSet().createResource(uri(workspaceId, id));
         ModelMeta meta = new ModelMeta(name.strip(), ePackage.getNsURI(), 1, blankToNull(role));
-        write(workspaceId, id, resource, meta);
+        write(workspaceId, id, resource, meta, ModelVersion.CREATED, null);
         return header(id, meta).withRoots(List.of());
     }
 
@@ -152,15 +160,15 @@ public class WorkspaceStore {
         String name = document.name() == null || document.name().isBlank() ? meta.name() : document.name().strip();
         String role = document.role() == null ? meta.role() : blankToNull(document.role());
         ModelMeta next = meta.nextVersion(name, role);
-        write(workspaceId, id, resource, next);
+        write(workspaceId, id, resource, next, ModelVersion.SAVED, null);
         return header(id, next).withRoots(ModelJsonMapper.toJson(resource));
     }
 
-    /** Saves a resource modified in memory (for example by a quick fix) and bumps the version. */
+    /** Saves a resource modified in memory by a quick fix and bumps the version. */
     public synchronized ModelDocument save(String workspaceId, String id, XMLResource resource) {
         ModelMeta meta = readMeta(workspaceId, id);
         ModelMeta next = meta.nextVersion(meta.name(), meta.role());
-        write(workspaceId, id, resource, next);
+        write(workspaceId, id, resource, next, ModelVersion.FIXED, null);
         return header(id, next).withRoots(ModelJsonMapper.toJson(resource));
     }
 
@@ -190,7 +198,7 @@ public class WorkspaceStore {
         EPackage ePackage = requirePackage(nsUri);
         String modelName = name == null || name.isBlank() ? id : name.strip();
         ModelMeta meta = new ModelMeta(modelName, ePackage.getNsURI(), 1, blankToNull(role));
-        write(workspaceId, id, resource, meta);
+        write(workspaceId, id, resource, meta, ModelVersion.IMPORTED, null);
         return header(id, meta).withRoots(ModelJsonMapper.toJson(resource));
     }
 
@@ -218,13 +226,13 @@ public class WorkspaceStore {
         return Files.exists(metaFile(workspaceId, id)) && Files.exists(xmiFile(workspaceId, id));
     }
 
-    /** Saves a resource built in memory as the model {@code id}, replacing a previous one if present. */
+    /** Saves a resource built by a derivation as the model {@code id}, replacing a previous one if present. */
     public synchronized ModelDocument put(String workspaceId, String id, XMLResource resource, String name,
             String metamodel, String role) {
         EPackage ePackage = requirePackage(metamodel);
         int version = exists(workspaceId, id) ? readMeta(workspaceId, id).version() + 1 : 1;
         ModelMeta meta = new ModelMeta(name, ePackage.getNsURI(), version, blankToNull(role));
-        write(workspaceId, id, resource, meta);
+        write(workspaceId, id, resource, meta, ModelVersion.DERIVED, null);
         return header(id, meta).withRoots(ModelJsonMapper.toJson(resource));
     }
 
@@ -235,6 +243,7 @@ public class WorkspaceStore {
             Files.deleteIfExists(dir.resolve(id + ".xmi"));
             Files.deleteIfExists(dir.resolve(id + ".meta.json"));
             Files.deleteIfExists(dir.resolve(id + ".layout.json"));
+            deleteHistory(workspaceId, id);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -249,6 +258,134 @@ public class WorkspaceStore {
             throw new UncheckedIOException(e);
         }
         return layout;
+    }
+
+    // ---------------------------------------------------------------- history
+
+    /** The saved versions of a model, most recent first; the first one is the current content. */
+    public synchronized List<ModelVersion> versions(String workspaceId, String id) {
+        ModelMeta meta = readMeta(workspaceId, id);
+        adoptCurrent(workspaceId, id, meta);
+        List<ModelVersion> result = new ArrayList<>();
+        try (Stream<Path> files = Files.list(historyDir(workspaceId, id))) {
+            for (Path file : files.filter(f -> f.getFileName().toString().endsWith(".json")).toList()) {
+                ModelVersion version = json.readValue(file.toFile(), ModelVersion.class);
+                if (version.version() <= meta.version()) {
+                    result.add(version);
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        result.sort(Comparator.comparingInt(ModelVersion::version).reversed());
+        return result;
+    }
+
+    /** The content a model had at a past version, with references resolved against today's workspace. */
+    public synchronized ModelDocument version(String workspaceId, String id, int version) {
+        ModelMeta meta = readMeta(workspaceId, id);
+        adoptCurrent(workspaceId, id, meta);
+        ModelVersion info = readVersion(workspaceId, id, version);
+        XMLResource resource = loadVersion(workspaceId, id, version);
+        return new ModelDocument(id, info.name(), meta.metamodel(), info.role(), version, null)
+                .withRoots(ModelJsonMapper.toJson(resource));
+    }
+
+    /**
+     * Brings back the content of a past version as a new version: nothing is lost, the history only
+     * grows. Name and role stay the current ones.
+     */
+    public synchronized ModelDocument restore(String workspaceId, String id, int version) {
+        ModelMeta meta = readMeta(workspaceId, id);
+        adoptCurrent(workspaceId, id, meta);
+        if (version == meta.version()) {
+            throw ApiException.badRequest("Version " + version + " of '" + id + "' is already the current one");
+        }
+        readVersion(workspaceId, id, version);
+        XMLResource resource = loadVersion(workspaceId, id, version);
+        ModelMeta next = meta.nextVersion(meta.name(), meta.role());
+        write(workspaceId, id, resource, next, ModelVersion.RESTORED, version);
+        return header(id, next).withRoots(ModelJsonMapper.toJson(resource));
+    }
+
+    private XMLResource loadVersion(String workspaceId, String id, int version) {
+        // Loaded under the address of the model itself, so that relative hrefs still find the other models.
+        XMLResource resource = (XMLResource) newResourceSet().createResource(uri(workspaceId, id));
+        try {
+            resource.load(new ByteArrayInputStream(Files.readAllBytes(versionFile(workspaceId, id, version, ".xmi"))),
+                    XMI_OPTIONS);
+        } catch (IOException | RuntimeException e) {
+            throw new ApiException(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Version " + version + " of '" + id + "' cannot be read: " + rootMessage(e));
+        }
+        return resource;
+    }
+
+    private ModelVersion readVersion(String workspaceId, String id, int version) {
+        Path file = versionFile(workspaceId, id, version, ".json");
+        if (version < 1 || !Files.exists(file) || !Files.exists(versionFile(workspaceId, id, version, ".xmi"))) {
+            throw ApiException.notFound("Model '" + id + "' has no version " + version + " in its history");
+        }
+        try {
+            return json.readValue(file.toFile(), ModelVersion.class);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    /** Models saved before the history existed, or edited on disk, get their current content recorded. */
+    private void adoptCurrent(String workspaceId, String id, ModelMeta meta) {
+        Path xmi = xmiFile(workspaceId, id);
+        Path copy = versionFile(workspaceId, id, meta.version(), ".xmi");
+        try {
+            byte[] current = Files.readAllBytes(xmi);
+            if (Files.exists(copy) && java.util.Arrays.equals(current, Files.readAllBytes(copy))) {
+                return;
+            }
+            record(workspaceId, id, current, new ModelVersion(meta.version(), meta.name(), meta.role(),
+                    Files.getLastModifiedTime(xmi).toInstant().truncatedTo(ChronoUnit.SECONDS).toString(), null,
+                    null));
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    private void record(String workspaceId, String id, byte[] xmi, ModelVersion version) throws IOException {
+        Path dir = historyDir(workspaceId, id);
+        Files.createDirectories(dir);
+        Files.write(versionFile(workspaceId, id, version.version(), ".xmi"), xmi);
+        json.writerWithDefaultPrettyPrinter().writeValue(versionFile(workspaceId, id, version.version(), ".json").toFile(),
+                version);
+        try (Stream<Path> files = Files.list(dir)) {
+            for (Path file : files.toList()) {
+                String name = file.getFileName().toString();
+                String number = name.substring(0, Math.max(0, name.lastIndexOf('.')));
+                if (number.matches("\\d{1,9}") && Integer.parseInt(number) <= version.version() - historySize) {
+                    Files.deleteIfExists(file);
+                }
+            }
+        }
+    }
+
+    private void deleteHistory(String workspaceId, String id) throws IOException {
+        Path dir = historyDir(workspaceId, id);
+        if (!Files.isDirectory(dir)) {
+            return;
+        }
+        try (Stream<Path> files = Files.list(dir)) {
+            for (Path file : files.toList()) {
+                Files.deleteIfExists(file);
+            }
+        }
+        Files.deleteIfExists(dir);
+    }
+
+    private Path historyDir(String workspaceId, String id) {
+        return dir(workspaceId).resolve(HISTORY_DIR).resolve(checkId(id));
+    }
+
+    private Path versionFile(String workspaceId, String id, int version, String extension) {
+        return historyDir(workspaceId, id).resolve(version + extension);
     }
 
     // ---------------------------------------------------------------- internals
@@ -274,13 +411,22 @@ public class WorkspaceStore {
         }
     }
 
-    private void write(String workspaceId, String id, XMLResource resource, ModelMeta meta) {
+    private void write(String workspaceId, String id, XMLResource resource, ModelMeta meta, String origin,
+            Integer restoredFrom) {
         try {
             Files.createDirectories(dir(workspaceId));
+            if (meta.version() == 1) {
+                // A new model must not inherit the history of a deleted one with the same id.
+                deleteHistory(workspaceId, id);
+            } else if (Files.exists(xmiFile(workspaceId, id)) && Files.exists(metaFile(workspaceId, id))) {
+                adoptCurrent(workspaceId, id, json.readValue(metaFile(workspaceId, id).toFile(), ModelMeta.class));
+            }
             ByteArrayOutputStream buffer = new ByteArrayOutputStream();
             resource.save(buffer, XMI_OPTIONS);
             Files.write(xmiFile(workspaceId, id), buffer.toByteArray());
             json.writerWithDefaultPrettyPrinter().writeValue(metaFile(workspaceId, id).toFile(), meta);
+            record(workspaceId, id, buffer.toByteArray(), new ModelVersion(meta.version(), meta.name(), meta.role(),
+                    Instant.now().truncatedTo(ChronoUnit.SECONDS).toString(), origin, restoredFrom));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

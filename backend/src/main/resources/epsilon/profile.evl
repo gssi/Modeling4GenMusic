@@ -23,10 +23,26 @@ context L!Skill {
   }
 }
 
+context L!HandSpanLimit {
+
+  constraint HandSpanBounds {
+    check: self.maxStretchSemitones >= 2 and self.maxStretchSemitones <= 24
+      and (not self.eIsSet(self.eClass().getEStructuralFeature("handSpanCm")) or self.handSpanCm > 0)
+    message: "Apertura della mano " + self.hand.handName() + " fuori scala: intervallo massimo "
+      + self.maxStretchSemitones + " semitoni (ammessi da 2 a 24)"
+      + (self.handSpanCm > 0 or not self.eIsSet(self.eClass().getEStructuralFeature("handSpanCm"))
+          ? "" : ", misura " + self.handSpanCm + " cm (deve essere maggiore di zero)")
+  }
+}
+
 context L!PatternMastery {
 
   constraint PatternSyntax {
     check: rhythm.isValid(self.expression)
     message: "Pattern ritmico non valido: " + rhythm.errorOf(self.expression)
   }
+}
+
+operation Any handName() : String {
+  return self = L!Hand#LEFT ? "sinistra" : "destra";
 }

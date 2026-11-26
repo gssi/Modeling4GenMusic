@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.List;
 
 import org.modeling4genmusic.studio.model.ModelDocument;
+import org.modeling4genmusic.studio.workspace.ModelVersion;
 import org.modeling4genmusic.studio.workspace.WorkspaceStore;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -90,6 +91,24 @@ public class ModelController {
     public JsonNode saveLayout(@RequestParam(name = WS, defaultValue = DEFAULT_WS) String workspaceId,
             @PathVariable String id, @RequestBody JsonNode layout) {
         return store.saveLayout(workspaceId, id, layout);
+    }
+
+    @GetMapping("/{id}/versions")
+    public List<ModelVersion> versions(@RequestParam(name = WS, defaultValue = DEFAULT_WS) String workspaceId,
+            @PathVariable String id) {
+        return store.versions(workspaceId, id);
+    }
+
+    @GetMapping("/{id}/versions/{version}")
+    public ModelDocument version(@RequestParam(name = WS, defaultValue = DEFAULT_WS) String workspaceId,
+            @PathVariable String id, @PathVariable int version) {
+        return store.version(workspaceId, id, version);
+    }
+
+    @PostMapping("/{id}/versions/{version}/restore")
+    public ModelDocument restore(@RequestParam(name = WS, defaultValue = DEFAULT_WS) String workspaceId,
+            @PathVariable String id, @PathVariable int version) {
+        return store.restore(workspaceId, id, version);
     }
 
     @GetMapping(path = "/{id}/xmi")

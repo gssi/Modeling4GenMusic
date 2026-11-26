@@ -9,7 +9,7 @@ import {
   useReactFlow,
 } from '@xyflow/react'
 import { toPng, toSvg } from 'html-to-image'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api/client'
 import type { ReferenceDescriptor } from '../api/types'
 import { Dialog } from '../app/Dialog'
@@ -45,9 +45,11 @@ export interface Decoration {
 interface CanvasProps {
   modelId: string
   decoration?: Decoration
+  /** Application commands shown after the save and validate buttons. */
+  toolbarExtra?: ReactNode
 }
 
-function CanvasInner({ modelId, decoration }: CanvasProps) {
+function CanvasInner({ modelId, decoration, toolbarExtra }: CanvasProps) {
   const model = useStudio((s) => s.open[modelId])
   const metamodels = useStudio((s) => s.metamodels)
   const summaries = useStudio((s) => s.summaries)
@@ -326,6 +328,7 @@ function CanvasInner({ modelId, decoration }: CanvasProps) {
         <button type="button" onClick={() => void validate(modelId)} disabled={model.dirty} title={model.dirty ? 'Salva per poter validare' : undefined}>
           Valida
         </button>
+        {toolbarExtra}
         <span className="toolbar-gap" />
         <button type="button" onClick={() => undo(modelId)} disabled={!model.past.length}>
           Annulla

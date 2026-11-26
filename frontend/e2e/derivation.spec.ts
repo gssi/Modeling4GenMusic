@@ -11,6 +11,8 @@ test('profile from the learner form, derivation, provenance colours and generate
   await page.getByRole('button', { name: 'Nuovo profilo' }).click()
   await page.getByLabel('Nome').fill('Profilo e2e')
   await page.getByRole('button', { name: 'Crea', exact: true }).click()
+  // the generic editor offers the new classes without any code written for them
+  await expect(page.getByRole('region', { name: 'Elementi che puoi aggiungere' }).getByRole('button', { name: 'HandSpanLimit' })).toBeVisible()
   await page.getByRole('button', { name: 'Scheda' }).click()
   await page.getByRole('button', { name: 'Crea il profilo' }).click()
 
@@ -26,6 +28,13 @@ test('profile from the learner form, derivation, provenance colours and generate
 
   await page.getByLabel(/Ipovisione/).check()
   await expect(page.getByLabel('Ingrandimento minimo del pentagramma')).toHaveValue('1.5')
+
+  // a physical limit: the right hand opens a major sixth; the model stores semitones, the form shows names
+  await page.getByRole('button', { name: 'Aggiungi un limite di apertura' }).click()
+  await expect(page.getByLabel('Mano del limite handSpanLimit1')).toHaveValue('RIGHT')
+  await page.getByLabel('Apertura massima della mano destra').selectOption({ label: 'sesta maggiore' })
+  await expect(page.getByLabel('Apertura massima della mano destra')).toHaveValue('9')
+  await page.getByLabel('Apertura in centimetri della mano destra').fill('16')
 
   await page.getByRole('button', { name: 'Aggiungi pattern' }).click()
   await page.getByLabel('Pattern 1', { exact: true }).fill('8. 16')
@@ -96,15 +105,25 @@ test('profile from the learner form, derivation, provenance colours and generate
   await expect(node(': ContainsPattern')).toHaveClass(/is-tint-teacher/)
   await expect(node(': ContainsPattern')).toHaveCSS('border-top-color', TEACHER)
   await expect(node(': ContainsPattern')).toContainText('minOccurrences = 3')
-  for (const derived of [': ExcludesPattern', ': RangeConstraint', ': RenderConstraint']) {
+  for (const derived of [': ExcludesPattern', ': RangeConstraint', ': RenderConstraint', ': SpanConstraint']) {
     await expect(node(derived)).toHaveClass(/is-tint-derived/)
     await expect(node(derived)).toHaveCSS('border-top-color', DERIVED)
   }
+  await expect(node(': SpanConstraint')).toContainText('maxSimultaneousSemitones = 9')
+  await expect(node(': SpanConstraint')).toContainText('hand = RIGHT')
+  await expect(page.getByRole('region', { name: 'Elementi che puoi aggiungere' }).getByRole('button', { name: 'SpanConstraint' })).toBeVisible()
   const spec = node(': ExerciseSpec')
   await expect(spec.locator('li', { hasText: 'key = "G"' })).toHaveClass(/is-tint-teacher/)
   await expect(spec.locator('li', { hasText: 'maxBpm = 72' })).toHaveClass(/is-tint-derived/)
   await expect(spec.locator('li', { hasText: 'instrument = PIANO' })).toHaveClass(/is-tint-derived/)
   await expect(page.getByLabel('Legenda dei colori')).toContainText('Chiesto dalla docente')
+
+  // the span constraint is editable in the generated properties panel and traced to the hand limit
+  await node(': SpanConstraint').click()
+  await expect(page.getByRole('textbox', { name: 'maxStretchInPosition' })).toHaveValue('9')
+  await expect(page.getByRole('combobox', { name: /^hand/ })).toHaveValue('RIGHT')
+  await expect(page.getByText('Limite di apertura della mano destra: massimo 9 semitoni (sesta maggiore)')).toBeVisible()
+  await expect(page.getByText('Regola SpanFromHandLimit')).toBeVisible()
 
   // selecting a derived element explains where it comes from
   await node(': RangeConstraint').click()
@@ -151,6 +170,8 @@ test('profile from the learner form, derivation, provenance colours and generate
   // the exercise can be listened to
   await expect(page.getByRole('group', { name: 'Ascolto dell’esercizio' }).getByRole('button', { name: 'Ascolta' })).toBeEnabled()
   await expect(page.getByLabel('Velocità')).toHaveValue('100')
+  await expect(page.locator('.check-list')).toContainText('Non ci sono note simultanee')
+  await expect(page.locator('.check-list')).toContainText('Nessun cambio di posizione della mano destra')
   // the sample tune has short bars: a remark, not a failure
   await expect(page.locator('.check-list li.is-note')).toContainText('Le battute 2, 4, 6, 7 non durano 4/4')
   await expect(page.getByRole('img', { name: 'Partitura dell’esercizio generato' }).locator('svg')).toBeVisible()
@@ -162,6 +183,21 @@ test('profile from the learner form, derivation, provenance colours and generate
   await expect(page.getByLabel('Tipo di modello')).toHaveValue('intent')
   await expect(page.getByLabel('Tonalità')).toHaveValue('G')
   await expect(page.getByLabel('Allievo')).toHaveValue('profilo-e2e#learner1')
+  await page.getByLabel('Tipo di vincolo da aggiungere').selectOption('ContainsPattern')
+  await page.getByRole('button', { name: 'Aggiungi vincolo' }).click()
+  await page.getByLabel('Tipo di pattern').last().selectOption('INTERVAL')
+  await page.getByLabel('Espressione del pattern').last().fill('+12 x')
+  await expect(page.getByText("passo non valido 'x'")).toBeVisible()
+  await page.getByLabel('Espressione del pattern').last().fill('+12')
+  await expect(page.getByText(/Salto più ampio: ottava/)).toBeVisible()
+  await page.getByRole('button', { name: 'Salva', exact: true }).click()
+  await expect(page.getByText(/salto di 12 semitoni \(ottava\), oltre l'apertura della mano destra/)).toBeVisible()
+  await page.screenshot({ path: 'test-results/leap-warning.png' })
+  // from the problem to the rule that raised it, and back to the model
+  await page.getByRole('button', { name: 'Vedi la regola' }).first().click()
+  await expect(page.getByRole('tab', { name: 'Regole' })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('.rule.is-focused')).toHaveCount(1)
+  await page.getByRole('tab', { name: 'Intento e2e', exact: true }).click()
   await page.getByLabel('Tipo di vincolo da aggiungere').selectOption('RangeConstraint')
   await page.getByRole('button', { name: 'Aggiungi vincolo' }).click()
   await expect(page.getByRole('heading', { name: 'Estensione delle note' })).toBeVisible()
@@ -173,7 +209,9 @@ test('profile from the learner form, derivation, provenance colours and generate
   await page.getByRole('button', { name: 'Annulla', exact: true }).click()
   await page.getByRole('button', { name: 'Annulla', exact: true }).click()
   await page.getByRole('button', { name: 'Annulla', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Annulla', exact: true })).toBeDisabled()
+  // the three edits made after saving are undone; the saved octave leap stays
+  await expect(page.getByRole('heading', { name: 'Estensione delle note' })).toHaveCount(0)
+  await expect(page.getByLabel('Espressione del pattern').last()).toHaveValue('+12')
 
   await page.getByRole('button', { name: /^piano\.quality/ }).click()
   await page.getByRole('button', { name: 'Scheda', exact: true }).click()

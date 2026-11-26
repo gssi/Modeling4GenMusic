@@ -8,6 +8,7 @@ import org.eclipse.emf.ecore.EEnumLiteral;
 import org.eclipse.emf.ecore.EObject;
 import org.eclipse.emf.ecore.EStructuralFeature;
 import org.modeling4genmusic.studio.generation.ValidationReport.Check;
+import org.modeling4genmusic.studio.interval.IntervalPattern;
 import org.modeling4genmusic.studio.rhythm.RhythmPattern;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +45,10 @@ public class BasicExerciseValidator implements ExerciseValidator {
                 case "RangeConstraint" -> checks.add(range(tune, constraint, hard));
                 case "ContainsPattern" -> checks.add(pattern(tune, constraint, hard, true));
                 case "ExcludesPattern" -> checks.add(pattern(tune, constraint, hard, false));
+                case "SpanConstraint" -> {
+                    checks.add(handSpan(tune, constraint, hard));
+                    checks.add(positionChanges(tune, constraint));
+                }
                 default -> {
                     // Rendering constraints concern how the score is shown, not the notes.
                 }
@@ -80,17 +85,54 @@ public class BasicExerciseValidator implements ExerciseValidator {
     private static Check range(AbcTune tune, EObject constraint, boolean hard) {
         int lowest = intOf(constraint, "lowestMidi");
         int highest = intOf(constraint, "highestMidi");
-        List<AbcTune.Event> notes = tune.notes();
-        long outside = notes.stream().filter(n -> n.midi() < lowest || n.midi() > highest).count();
+        List<Integer> notes = tune.pitches();
+        long outside = notes.stream().filter(n -> n < lowest || n > highest).count();
         if (outside == 0) {
             return new Check("range", true, hard,
                     "Tutte le note sono nell'estensione MIDI " + lowest + "–" + highest);
         }
-        int min = notes.stream().mapToInt(AbcTune.Event::midi).min().orElse(lowest);
-        int max = notes.stream().mapToInt(AbcTune.Event::midi).max().orElse(highest);
+        int min = notes.stream().mapToInt(Integer::intValue).min().orElse(lowest);
+        int max = notes.stream().mapToInt(Integer::intValue).max().orElse(highest);
         return new Check("range", false, hard, outside + (outside == 1 ? " nota è" : " note sono")
                 + " fuori dall'estensione MIDI " + lowest + "–" + highest + " (l'esercizio va da " + min + " a " + max
                 + ")");
+    }
+
+    /** Notes played together must fit in the hand: a wider chord cannot be played at all. */
+    private static Check handSpan(AbcTune tune, EObject constraint, boolean hard) {
+        int limit = intOf(constraint, "maxSimultaneousSemitones");
+        String hand = handName(constraint);
+        String reach = "l'apertura della mano " + hand + " (" + limit + " semitoni, " + IntervalPattern.nameOf(limit) + ")";
+        int widest = tune.notes().stream().mapToInt(AbcTune.Event::span).max().orElse(0);
+        if (widest == 0) {
+            return new Check("handSpan", true, hard, "Non ci sono note simultanee: " + reach + " è rispettata");
+        }
+        return widest <= limit
+                ? new Check("handSpan", true, hard, "L'accordo più ampio copre " + widest + " semitoni ("
+                        + IntervalPattern.nameOf(widest) + "), entro " + reach)
+                : new Check("handSpan", false, hard, "Un accordo copre " + widest + " semitoni ("
+                        + IntervalPattern.nameOf(widest) + "), oltre " + reach);
+    }
+
+    /** A melodic leap wider than the hand opens is playable by moving the hand: counted, never a failure. */
+    private static Check positionChanges(AbcTune tune, EObject constraint) {
+        int limit = intOf(constraint, "maxStretchInPosition");
+        List<AbcTune.Event> notes = tune.notes();
+        int changes = 0;
+        for (int i = 1; i < notes.size(); i++) {
+            if (Math.abs(notes.get(i).midi() - notes.get(i - 1).midi()) > limit) {
+                changes++;
+            }
+        }
+        String leaps = "salti melodici oltre " + limit + " semitoni (" + IntervalPattern.nameOf(limit) + ")";
+        return new Check("positionChanges", true, false,
+                changes == 0 ? "Nessun cambio di posizione della mano " + handName(constraint) + ": non ci sono " + leaps
+                        : (changes == 1 ? "1 cambio" : changes + " cambi") + " di posizione della mano "
+                                + handName(constraint) + ": " + leaps);
+    }
+
+    private static String handName(EObject constraint) {
+        return "LEFT".equals(literal(constraint, "hand")) ? "sinistra" : "destra";
     }
 
     private static Check pattern(AbcTune tune, EObject constraint, boolean hard, boolean required) {

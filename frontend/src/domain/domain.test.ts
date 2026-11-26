@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { intervalName, isValidIntervals, maxLeap, normalizeIntervals, parseIntervals } from './interval'
 import { midiName } from './notes'
 import { WEAVING, buildProvenance, elementTints, untraced } from './provenance'
 import { bandIssues } from './quality'
@@ -131,5 +132,38 @@ describe('provenance', () => {
     const provenance = buildProvenance(weaving, 'x.derived')!
     const leaf = (id: string) => ({ id, eClass: 'X', attributes: {}, contents: {}, references: {} })
     expect(untraced(provenance, [leaf('spec'), leaf('c1'), leaf('orphan')])).toEqual(['orphan'])
+  })
+})
+
+describe('interval patterns', () => {
+  // Same cases as the backend validator: the two must accept exactly the same expressions.
+  it.each(['+12', '+3 -2 +12', '0', '+1 0 -1', '  +7   -7  ', '-24', '+10'])('accepts %j', (expression) => {
+    expect(isValidIntervals(expression)).toBe(true)
+  })
+
+  it.each(['', '   ', '12', '3 -2', '+0', '-0', '+03', '+2.5', '+x', '++3', '+25', '-100', '+3,-2'])('rejects %j', (expression) => {
+    expect(isValidIntervals(expression)).toBe(false)
+  })
+
+  it('names the offending step', () => {
+    expect(parseIntervals('+3 12')).toEqual({ ok: false, error: expect.stringContaining("'12'") })
+    expect(parseIntervals('+25')).toEqual({ ok: false, error: expect.stringContaining('troppo ampio') })
+    expect(parseIntervals(null)).toEqual({ ok: false, error: expect.stringContaining('vuoto') })
+  })
+
+  it('reads steps and the widest leap', () => {
+    const parsed = parseIntervals(' +3  -2 +12 ')
+    expect(parsed).toEqual({ ok: true, steps: [3, -2, 12] })
+    expect(maxLeap([3, -2, 12])).toBe(12)
+    expect(maxLeap([-9, 4])).toBe(9)
+    expect(maxLeap([0])).toBe(0)
+    expect(normalizeIntervals([3, -2, 12])).toBe('+3 -2 +12')
+  })
+
+  it('names intervals', () => {
+    expect(intervalName(9)).toBe('sesta maggiore')
+    expect(intervalName(-12)).toBe('ottava')
+    expect(intervalName(16)).toBe('decima maggiore')
+    expect(intervalName(20)).toBe('20 semitoni')
   })
 })

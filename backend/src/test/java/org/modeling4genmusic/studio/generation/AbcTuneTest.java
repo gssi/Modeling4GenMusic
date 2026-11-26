@@ -57,7 +57,8 @@ class AbcTuneTest {
         assertThatThrownBy(() -> AbcTune.parse("")).hasMessageContaining("vuoto");
         assertThatThrownBy(() -> AbcTune.parse("M:4/4\nC D E F")).hasMessageContaining("K:");
         assertThatThrownBy(() -> tune("H", "1/8", "C")).hasMessageContaining("tonalità");
-        assertThatThrownBy(() -> tune("C", "1/8", "[CEG]2")).hasMessageContaining("accordi");
+        assertThatThrownBy(() -> tune("C", "1/8", "C2 [K:G] D2")).hasMessageContaining("in mezzo al brano");
+        assertThatThrownBy(() -> tune("C", "1/8", "[CE")).hasMessageContaining("accordo");
         assertThatThrownBy(() -> tune("C", "1/8", "(5CDEFG")).hasMessageContaining("irregolari");
         assertThatThrownBy(() -> tune("C", "1/8", "C ? D")).hasMessageContaining("'?'");
     }
@@ -90,5 +91,22 @@ class AbcTuneTest {
         assertThat(tune.bars().get(0)).extracting(Event::units).containsExactly(16, 16, 16, 48, 48, 32, 32, 32);
         assertThat(tune.bars().get(0).stream().mapToInt(Event::units).sum()).isEqualTo(AbcTune.WHOLE + 48);
         assertThat(tune.bars().get(1)).extracting(Event::units).containsExactly(36, 36, 18, 18, 18, 18, 48);
+    }
+
+    @Test
+    void readsChordsAsNotesPlayedTogether() {
+        AbcTune tune = tune("G", "1/8", "[Gg]2 [CEG]4 [c2e2] F | [B,D]>[DF] z2 |]");
+        List<Event> first = tune.bars().get(0);
+        assertThat(first).extracting(Event::units).containsExactly(48, 96, 48, 24);
+        assertThat(first.get(0).pitches()).containsExactly(67, 79);
+        assertThat(first.get(0).midi()).isEqualTo(79);
+        assertThat(first.get(0).span()).isEqualTo(12);
+        assertThat(first.get(1).pitches()).containsExactly(60, 64, 67);
+        assertThat(first.get(1).span()).isEqualTo(7);
+        // the key signature applies inside chords too: F is sharp in G major
+        assertThat(first.get(3).pitches()).containsExactly(66);
+        assertThat(first.get(3).span()).isZero();
+        assertThat(tune.bars().get(1)).extracting(Event::units).containsExactly(36, 12, 48);
+        assertThat(tune.pitches()).contains(59, 62, 66, 79);
     }
 }

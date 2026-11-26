@@ -200,6 +200,26 @@ rule RenderForLowVision
   spec().constraints.add(d);
 }
 
+// A physical limit of a hand always becomes a hard constraint, for chords and for leaps in position.
+rule SpanFromHandLimit
+  transform n : L!HandSpanLimit
+  to d : S!SpanConstraint {
+
+  guard: n.eContainer() = learner()
+
+  ids.numbered(d, "c_span");
+  d.strength = S!Strength#HARD;
+  d.hand = n.hand;
+  d.maxSimultaneousSemitones = n.maxStretchSemitones;
+  d.maxStretchInPosition = n.maxStretchSemitones;
+
+  derivation("SpanFromHandLimit", d, null,
+    "Limite di apertura della mano " + (n.hand = L!Hand#LEFT ? "sinistra" : "destra") + ": massimo "
+      + n.maxStretchSemitones + " semitoni (" + intervals.nameOf(n.maxStretchSemitones) + ")")
+    .from(W!Origin#PROFILE, n, "maxStretchSemitones");
+  spec().constraints.add(d);
+}
+
 // 8. Quality goals set by the teacher are kept.
 rule CopyQualityGoals
   transform g : T!QualityGoal

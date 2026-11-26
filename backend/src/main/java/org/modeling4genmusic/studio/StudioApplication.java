@@ -1,5 +1,6 @@
 package org.modeling4genmusic.studio;
 
+import org.modeling4genmusic.studio.assistant.AssistantProperties;
 import org.modeling4genmusic.studio.config.StudioProperties;
 import org.modeling4genmusic.studio.generation.GenerationProperties;
 import org.modeling4genmusic.studio.generation.OllamaProperties;
@@ -8,7 +9,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties({ StudioProperties.class, OllamaProperties.class, GenerationProperties.class })
+@EnableConfigurationProperties({ StudioProperties.class, OllamaProperties.class, GenerationProperties.class,
+        AssistantProperties.class })
 public class StudioApplication {
 
     public static void main(String[] args) {

@@ -37,6 +37,23 @@ context T!ContainsPattern {
   }
 }
 
+context T!ContainsPattern {
+
+  // A leap wider than the hand opens can be played, by moving the hand: the teacher decides.
+  critique LeapBeyondReach {
+    guard: self.pattern.isDefined() and self.pattern.kind = T!PatternKind#INTERVAL
+      and intervals.isValid(self.pattern.expression)
+      and self.eContainer().hasLearner() and self.eContainer().learner.reach().isDefined()
+    check: intervals.maxLeap(self.pattern.expression) <= self.eContainer().learner.reach().maxStretchSemitones
+    message: "Il pattern '" + self.pattern.expression + "' contiene un salto di "
+      + intervals.maxLeap(self.pattern.expression) + " semitoni ("
+      + intervals.nameOf(intervals.maxLeap(self.pattern.expression)) + "), oltre l'apertura della mano destra di "
+      + self.eContainer().learner.name + " (" + self.eContainer().learner.reach().maxStretchSemitones
+      + " semitoni, " + intervals.nameOf(self.eContainer().learner.reach().maxStretchSemitones)
+      + "): richiede un cambio di posizione della mano e potrebbe essere troppo impegnativo"
+  }
+}
+
 context T!QualityGoal {
 
   critique ComplexityAboveLevel {
@@ -69,4 +86,9 @@ operation T!Pattern samePattern(other : T!Pattern) : Boolean {
 
 operation normalize(expression : Any) : String {
   return rhythm.normalize(expression);
+}
+
+// The limit of the hand that plays the exercise: the right one, exercises being for the right hand only.
+operation L!Learner reach() : Any {
+  return self.needs.select(n | n.isTypeOf(L!HandSpanLimit) and n.hand = L!Hand#RIGHT).first();
 }

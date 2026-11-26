@@ -10,6 +10,8 @@ import type {
   ModelHeader,
   ModelObject,
   Position,
+  RuleSet,
+  TransformationScript,
 } from '../api/types'
 import { type Provenance, findProvenance } from '../domain/provenance'
 import { type ContainerSlot, containerSlots } from '../editor/connections'
@@ -20,6 +22,8 @@ import { addChild, addRoot, cloneWithNewIds, locate, removeObjects, uniqueId } f
 
 /** Id of the tab that hosts the derivation view; it is not a model. */
 export const DERIVE_TAB = '@derive'
+/** Id of the tab that shows the validation rules. */
+export const RULES_TAB = '@rules'
 
 const HISTORY_LIMIT = 100
 const COALESCE_MS = 1500
@@ -85,10 +89,24 @@ interface StudioState {
   generators: GeneratorInfo[]
   /** Generator chosen in the exercise view; null until the list is read, then the default one. */
   generatorId: string | null
+  /** Validation scripts as the server parses them; null until read. */
+  rules: RuleSet[] | null
+  /** The derivation script as the server parses it; null until read. */
+  transformation: TransformationScript | null
+  /** Name of the rule the rules tab scrolls to. */
+  ruleFocus: string | null
 
   setViewMode: (modelId: string, mode: ViewMode) => void
   setRole: (modelId: string, role: string) => void
   openDerivation: () => void
+  openRules: (ruleName?: string) => void
+  loadRules: () => Promise<void>
+  /** Keeps a new text of a validation script; resolves to false when the server refused it. */
+  saveRules: (script: string, source: string) => Promise<boolean>
+  /** Goes back to the script shipped with the application. */
+  resetRules: (script: string) => Promise<void>
+  saveTransformation: (source: string) => Promise<boolean>
+  resetTransformation: () => Promise<void>
   setDerivationInput: (input: Partial<Pick<DerivationState, 'learnerId' | 'intentId' | 'qualityId'>>) => void
   derive: () => Promise<void>
   reloadModel: (id: string) => Promise<void>
@@ -120,6 +138,8 @@ interface StudioState {
   copy: (modelId: string) => void
   paste: (modelId: string) => void
   save: (modelId: string) => Promise<void>
+  /** Brings back a saved version as a new one; resolves to false when it could not be done. */
+  restoreVersion: (modelId: string, version: number) => Promise<boolean>
   validate: (modelId: string) => Promise<void>
   applyFix: (modelId: string, diagnosticId: string, fixIndex: number) => Promise<void>
   loadExternals: (exceptId: string) => Promise<void>
@@ -215,6 +235,15 @@ export const useStudio = create<StudioState>((set, get) => {
     settlePositions(modelId, slot?.parent.id, position ? { [object.id]: position } : undefined)
   }
 
+  /** Takes in a changed script and validates the open models again, since the rules they answer to changed. */
+  const adoptRules = (updated: RuleSet, text: string) => {
+    set((state) => ({
+      rules: state.rules?.map((r) => (r.script === updated.script ? updated : r)) ?? null,
+      notice: { kind: 'info', text },
+    }))
+    for (const id of Object.keys(get().open)) void get().validate(id)
+  }
+
   /** Reads a model from the server into a tab, replacing an open copy, without changing the active tab. */
   const load = async (id: string, selectId?: string) => {
     try {
@@ -268,6 +297,9 @@ export const useStudio = create<StudioState>((set, get) => {
     derivation: { learnerId: '', intentId: '', qualityId: '', running: false, result: null },
     generations: {},
     generating: null,
+    rules: null,
+    transformation: null,
+    ruleFocus: null,
     generators: [],
     generatorId: null,
 
@@ -275,6 +307,61 @@ export const useStudio = create<StudioState>((set, get) => {
 
     setRole: (modelId, role) =>
       patch(modelId, (model) => (model.doc.role === role ? {} : { doc: { ...model.doc, role }, dirty: true, validated: false })),
+
+    openRules: (ruleName) =>
+      set((state) => ({
+        tabs: state.tabs.includes(RULES_TAB) ? state.tabs : [...state.tabs, RULES_TAB],
+        activeId: RULES_TAB,
+        split: null,
+        ruleFocus: ruleName ?? null,
+      })),
+
+    loadRules: async () => {
+      try {
+        const [rules, transformation] = await Promise.all([api.listRules(), api.getTransformation()])
+        set({ rules, transformation })
+      } catch (e) {
+        set({ notice: { kind: 'error', text: `Lettura delle regole non riuscita: ${message(e)}` } })
+      }
+    },
+
+    saveRules: async (script, source) => {
+      try {
+        adoptRules(await api.saveRules(script, source), `Regole di ${script} salvate.`)
+        return true
+      } catch (e) {
+        set({ notice: { kind: 'error', text: `Regole non salvate: ${message(e)}` } })
+        return false
+      }
+    },
+
+    saveTransformation: async (source) => {
+      try {
+        const transformation = await api.saveTransformation(source)
+        set({ transformation, notice: { kind: 'info', text: `Regole di ${transformation.script} salvate.` } })
+        return true
+      } catch (e) {
+        set({ notice: { kind: 'error', text: `Regole non salvate: ${message(e)}` } })
+        return false
+      }
+    },
+
+    resetTransformation: async () => {
+      try {
+        const transformation = await api.resetTransformation()
+        set({ transformation, notice: { kind: 'info', text: `Regole di ${transformation.script} riportate a quelle originali.` } })
+      } catch (e) {
+        set({ notice: { kind: 'error', text: `Ripristino non riuscito: ${message(e)}` } })
+      }
+    },
+
+    resetRules: async (script) => {
+      try {
+        adoptRules(await api.resetRules(script), `Regole di ${script} riportate a quelle originali.`)
+      } catch (e) {
+        set({ notice: { kind: 'error', text: `Ripristino non riuscito: ${message(e)}` } })
+      }
+    },
 
     openDerivation: () =>
       set((state) => ({
@@ -374,6 +461,7 @@ export const useStudio = create<StudioState>((set, get) => {
         for (const d of descriptors) metamodels[d.nsURI] = d
         const models = await api.listModels()
         set({ summaries, metamodels, models, ready: true, loadError: null })
+        void get().loadRules()
       } catch (e) {
         set({ loadError: message(e) })
       }
@@ -610,6 +698,28 @@ export const useStudio = create<StudioState>((set, get) => {
               : `Salvataggio non riuscito: ${message(e)}`,
           },
         })
+      }
+    },
+
+    restoreVersion: async (modelId, version) => {
+      const model = get().open[modelId]
+      if (!model) return false
+      if (model.dirty) {
+        set({ notice: { kind: 'error', text: 'Salva o annulla le modifiche prima di ripristinare una versione.' } })
+        return false
+      }
+      try {
+        const restored = await api.restoreVersion(modelId, version)
+        await load(modelId)
+        set((state) => ({
+          externals: {},
+          models: state.models.map((m) => (m.id === restored.id ? { ...m, version: restored.version } : m)),
+          notice: { kind: 'info', text: `«${restored.name}» riportato al contenuto della versione ${version}.` },
+        }))
+        return true
+      } catch (e) {
+        set({ notice: { kind: 'error', text: `Ripristino non riuscito: ${message(e)}` } })
+        return false
       }
     },
 

@@ -38,14 +38,32 @@ public final class Scripts {
 
     /** Parses a script into the module, failing on syntax errors. */
     public static void parse(IEolModule module, String name) {
+        parse(module, name, read(name));
+    }
+
+    /** Parses the given text of a script into the module, failing on syntax errors. */
+    public static void parse(IEolModule module, String name, String source) {
         try {
-            module.parse(read(name));
+            module.parse(source);
         } catch (Exception e) {
             throw new IllegalStateException("Cannot parse " + name, e);
         }
         if (!module.getParseProblems().isEmpty()) {
             throw new IllegalStateException("Syntax errors in " + name + ": " + module.getParseProblems());
         }
+    }
+
+    /** The reason of a failed parse or run in one line: what went wrong and at which line of the script. */
+    public static String reason(Throwable e) {
+        Throwable cause = e;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String message = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
+        String reason = message.lines().findFirst().orElse(message).strip()
+                .replaceAll(" in object \\S+ \\(eClass: .*?\\(name: (\\w+)\\).*$", " in $1");
+        java.util.regex.Matcher position = java.util.regex.Pattern.compile("@(\\d+):\\d+").matcher(message);
+        return position.find() ? reason + " (line " + position.group(1) + ")" : reason;
     }
 
     /** A model that covers exactly one resource, not the other resources of its resource set. */

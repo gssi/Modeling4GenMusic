@@ -19,6 +19,11 @@
   <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Need" name="LowVision">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="minStaffScale" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
   </eClassifiers>
+  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Need" name="HandSpanLimit">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="hand" eType="#//Hand" lowerBound="1"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="handSpanCm" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="maxStretchSemitones" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt" lowerBound="1"/>
+  </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="PatternMastery">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="expression" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="status" eType="#//Mastery"/>
@@ -27,6 +32,10 @@
     <eLiterals xsi:type="ecore:EEnumLiteral" name="PIANO"/>
     <eLiterals xsi:type="ecore:EEnumLiteral" name="GUITAR" value="1"/>
     <eLiterals xsi:type="ecore:EEnumLiteral" name="FLUTE" value="2"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="Hand">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="LEFT"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="RIGHT" value="1"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EEnum" name="SkillArea">
     <eLiterals xsi:type="ecore:EEnumLiteral" name="RHYTHM"/>

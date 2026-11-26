@@ -78,9 +78,14 @@ class GenerationApiTest {
                 .andExpect(jsonPath("$.metadata.bars").value(8))
                 .andExpect(jsonPath("$.metadata.tempo").value("1/4=72"))
                 .andExpect(jsonPath("$.report.valid").value(true))
-                .andExpect(jsonPath("$.report.checks", hasSize(5)))
-                .andExpect(jsonPath("$.report.checks[*].name",
-                        contains("bars", "barLength", "containsPattern", "excludesPattern", "range")))
+                .andExpect(jsonPath("$.report.checks", hasSize(7)))
+                .andExpect(jsonPath("$.report.checks[*].name", contains("bars", "barLength", "containsPattern",
+                        "excludesPattern", "range", "handSpan", "positionChanges")))
+                .andExpect(jsonPath("$.report.checks[5].passed").value(true))
+                .andExpect(jsonPath("$.report.checks[5].blocking").value(true))
+                .andExpect(jsonPath("$.report.checks[5].message", containsString("Non ci sono note simultanee")))
+                .andExpect(jsonPath("$.report.checks[6].blocking").value(false))
+                .andExpect(jsonPath("$.report.checks[6].message", containsString("Nessun cambio di posizione")))
                 .andExpect(jsonPath("$.report.checks[?(@.blocking == true)].passed", everyItem(is(true))))
                 // The sample tune has four short bars: reported, without making the exercise invalid.
                 .andExpect(jsonPath("$.report.checks[1].passed").value(false))
@@ -122,5 +127,24 @@ class GenerationApiTest {
         assertThat(checks.get("range").message()).contains("1 nota").contains("60–79");
 
         assertThat(checks("not abc at all").get("abc").message()).contains("non è leggibile");
+    }
+
+    @Test
+    void aChordWiderThanTheHandOpensIsABlockingViolationAndLeapsAreOnlyCounted() {
+        String header = "X:1\nM:4/4\nL:1/8\nK:G\n";
+        // The octave dyad [Gg] cannot be played by a hand that opens a major sixth; G to g is a change of position.
+        Map<String, Check> checks = checks(header + "[Gg]2 B2 c>B A2 | G2 g2 d2 B2 |]");
+        assertThat(checks.get("handSpan").passed()).isFalse();
+        assertThat(checks.get("handSpan").blocking()).isTrue();
+        assertThat(checks.get("handSpan").message()).contains("12 semitoni (ottava)").contains("mano destra")
+                .contains("9 semitoni, sesta maggiore");
+        assertThat(checks.get("positionChanges").passed()).isTrue();
+        assertThat(checks.get("positionChanges").blocking()).isFalse();
+        assertThat(checks.get("positionChanges").message()).startsWith("1 cambio di posizione");
+
+        // A sixth fits: only the other constraints of this short tune fail.
+        Map<String, Check> sixth = checks(header + "[GB]2 [Ge]2 c>B A2 |]");
+        assertThat(sixth.get("handSpan").passed()).isTrue();
+        assertThat(sixth.get("handSpan").message()).contains("9 semitoni (sesta maggiore), entro");
     }
 }

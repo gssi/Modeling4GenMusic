@@ -1,4 +1,5 @@
 import type {
+  AssistantStatus,
   DerivationResult,
   Diagnostic,
   GenerationResult,
@@ -8,6 +9,10 @@ import type {
   ModelDocument,
   ModelHeader,
   ModelLayout,
+  ModelVersion,
+  RuleProposal,
+  RuleSet,
+  TransformationScript,
 } from './types'
 
 /** Error returned by the backend, with its HTTP status. */
@@ -79,6 +84,11 @@ export const api = {
   saveLayout: (id: string, layout: ModelLayout) =>
     request<ModelLayout>(url(`${model(id)}/layout`), json('PUT', layout)),
 
+  listVersions: (id: string) => request<ModelVersion[]>(url(`${model(id)}/versions`)),
+  getVersion: (id: string, version: number) => request<ModelDocument>(url(`${model(id)}/versions/${version}`)),
+  restoreVersion: (id: string, version: number) =>
+    request<ModelDocument>(url(`${model(id)}/versions/${version}/restore`), { method: 'POST' }),
+
   xmiUrl: (id: string) => url(`${model(id)}/xmi`),
 
   derive: (learnerModelId: string, teacherIntentModelId: string, qualityModelId: string) =>
@@ -87,6 +97,20 @@ export const api = {
   generate: (specModelId: string, qualityModelId?: string, generator?: string) =>
     request<GenerationResult>(url('/generations'), json('POST', { specModelId, qualityModelId, generator })),
 
+  listRules: () => request<RuleSet[]>(url('/rules')),
+  checkRules: (script: string, source: string) =>
+    request<RuleSet>(url(`/rules/${encodeURIComponent(script)}/check`), json('POST', { source })),
+  saveRules: (script: string, source: string) =>
+    request<RuleSet>(url(`/rules/${encodeURIComponent(script)}`), json('PUT', { source })),
+  resetRules: (script: string) => request<RuleSet>(url(`/rules/${encodeURIComponent(script)}`), { method: 'DELETE' }),
+  getTransformation: () => request<TransformationScript>(url('/derivations/script')),
+  checkTransformation: (source: string) =>
+    request<TransformationScript>(url('/derivations/script/check'), json('POST', { source })),
+  saveTransformation: (source: string) => request<TransformationScript>(url('/derivations/script'), json('PUT', { source })),
+  resetTransformation: () => request<TransformationScript>(url('/derivations/script'), { method: 'DELETE' }),
+  getAssistant: () => request<AssistantStatus>(url('/assistant')),
+  proposeRule: (script: string, source: string, description: string) =>
+    request<RuleProposal>(url('/assistant/rules'), json('POST', { script, source, description })),
   validate: (id: string) => request<Diagnostic[]>(url(`${model(id)}/validate`), { method: 'POST' }),
   applyFix: (id: string, diagnosticId: string, fixIndex: number) =>
     request<{ model: ModelDocument; diagnostics: Diagnostic[] }>(

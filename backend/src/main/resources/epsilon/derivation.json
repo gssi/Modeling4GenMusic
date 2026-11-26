@@ -11,6 +11,7 @@
   ],
   "tools": {
     "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool",
+    "intervals": "org.modeling4genmusic.studio.interval.IntervalTool",
     "ids": "org.modeling4genmusic.studio.derivation.ElementIdTool"
   }
 }

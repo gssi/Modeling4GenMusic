@@ -3,14 +3,20 @@
     "metamodel": "http://music/profile",
     "script": "profile.evl",
     "model": "L",
-    "tools": { "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool" }
+    "tools": {
+      "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool",
+      "intervals": "org.modeling4genmusic.studio.interval.IntervalTool"
+    }
   },
   {
     "metamodel": "http://music/exercise",
     "exceptRoles": ["derived"],
     "script": "intent.evl",
     "model": "T",
-    "tools": { "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool" },
+    "tools": {
+      "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool",
+      "intervals": "org.modeling4genmusic.studio.interval.IntervalTool"
+    },
     "related": [
       { "alias": "L", "metamodel": "http://music/profile", "reference": "learner" }
     ]

@@ -6,10 +6,12 @@ interface DialogProps {
   children: ReactNode
   /** Buttons, right aligned; the dialog closes on Escape or on the backdrop. */
   actions?: ReactNode
+  /** Room for two columns. */
+  wide?: boolean
 }
 
 /** Modal dialog on the native element, which traps focus while it is open. */
-export function Dialog({ title, onClose, children, actions }: DialogProps) {
+export function Dialog({ title, onClose, children, actions, wide }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export function Dialog({ title, onClose, children, actions }: DialogProps) {
   return (
     <dialog
       ref={ref}
-      className="dialog"
+      className={wide ? 'dialog is-wide' : 'dialog'}
       aria-label={title}
       onCancel={(e) => {
         e.preventDefault()

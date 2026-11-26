@@ -41,7 +41,7 @@ class ValidationTest {
         MetamodelRegistry registry = new MetamodelRegistry(properties);
         ObjectMapper json = new ObjectMapper();
         store = new WorkspaceStore(properties, registry, json);
-        service = new ValidationService(store, new EmfValidator(), new EvlValidator(registry, json));
+        service = new ValidationService(store, new EmfValidator(), new EvlValidator(registry, json, new RuleStore(properties)));
     }
 
     // ---------------------------------------------------------------- builders
@@ -328,6 +328,63 @@ class ValidationTest {
         assertThat(dangling.elementId()).isEqualTo("intent");
         assertThat(dangling.message()).contains("'learner'").contains(profile);
         assertThat(names(diagnostics)).containsExactly("UnresolvedReference");
+    }
+
+    // ---------------------------------------------------------------- physical limits
+
+    private String profileWithReach(String name, Map<String, Object> limit) {
+        ObjectNode learner = node("giulia", "Learner", learnerAttributes(),
+                limit == null ? null : Map.of("needs", List.of(leaf("need_handspan", "HandSpanLimit", limit))), null);
+        return save(PROFILE, name, null, learner);
+    }
+
+    private static ObjectNode leap(String expression) {
+        return node("c_leap", "ContainsPattern", Map.of(),
+                Map.of("pattern", List.of(leaf("p_leap", "Pattern", Map.of("kind", "INTERVAL", "expression", expression)))),
+                null);
+    }
+
+    @Test
+    void handSpanBounds() {
+        // The left hand is the first literal of the enum: a required attribute left at its default is still set.
+        assertThat(service.validate(WS, profileWithReach("Left hand", Map.of("hand", "LEFT", "maxStretchSemitones", 9))))
+                .isEmpty();
+        assertThat(service.validate(WS, profileWithReach("Measured",
+                Map.of("hand", "RIGHT", "handSpanCm", 16.0, "maxStretchSemitones", 24)))).isEmpty();
+
+        Diagnostic narrow = only(service.validate(WS,
+                profileWithReach("Too narrow", Map.of("hand", "RIGHT", "maxStretchSemitones", 1))), "HandSpanBounds");
+        assertThat(narrow.severity()).isEqualTo(Diagnostic.Severity.ERROR);
+        assertThat(narrow.elementId()).isEqualTo("need_handspan");
+        assertThat(narrow.message()).contains("mano destra").contains("1 semitoni");
+        only(service.validate(WS, profileWithReach("Too wide", Map.of("hand", "LEFT", "maxStretchSemitones", 25))),
+                "HandSpanBounds");
+        assertThat(only(service.validate(WS, profileWithReach("Negative span",
+                Map.of("hand", "RIGHT", "handSpanCm", -1.0, "maxStretchSemitones", 9))), "HandSpanBounds").message())
+                .contains("-1.0 cm");
+    }
+
+    @Test
+    void leapBeyondReach() {
+        String reach = profileWithReach("Reach", Map.of("hand", "RIGHT", "maxStretchSemitones", 9));
+        String fine = save(EXERCISE, "Sixth", "intent", intent(reach, 60, 0, List.of(leap("+9 -4")), List.of()));
+        assertThat(names(service.validate(WS, fine))).doesNotContain("LeapBeyondReach");
+
+        String octave = save(EXERCISE, "Octave", "intent", intent(reach, 60, 0, List.of(leap("+3 -12")), List.of()));
+        Diagnostic diagnostic = only(service.validate(WS, octave), "LeapBeyondReach");
+        assertThat(diagnostic.severity()).isEqualTo(Diagnostic.Severity.WARNING);
+        assertThat(diagnostic.elementId()).isEqualTo("c_leap");
+        assertThat(diagnostic.fixes()).isEmpty();
+        assertThat(diagnostic.message()).contains("12 semitoni (ottava)").contains("cambio di posizione");
+
+        // Only the right hand counts, and without a limit there is nothing to compare with.
+        String leftOnly = profileWithReach("Left only", Map.of("hand", "LEFT", "maxStretchSemitones", 5));
+        String noLimit = profileWithReach("No limit", null);
+        for (String profile : List.of(leftOnly, noLimit)) {
+            String id = save(EXERCISE, "Octave for " + profile, "intent",
+                    intent(profile, 60, 0, List.of(leap("+12")), List.of()));
+            assertThat(names(service.validate(WS, id))).doesNotContain("LeapBeyondReach");
+        }
     }
 
     // ---------------------------------------------------------------- weaving.evl
