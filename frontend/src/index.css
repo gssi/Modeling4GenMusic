@@ -1498,3 +1498,28 @@ button.link {
 .attempt[open] summary {
   margin-bottom: 0.5rem;
 }
+
+.score-player {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.player-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.player-speed {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* The note that is sounding, on the staff. */
+.abc-preview .is-sounding {
+  fill: var(--focus);
+  stroke: var(--focus);
+}

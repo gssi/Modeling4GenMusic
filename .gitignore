@@ -1,12 +1,12 @@
-# Runtime data
-workspace/
+# Runtime data (only the folder at the top: there is a Java package with the same name)
+/workspace/
 
 # Build output
-backend/target/
-frontend/node_modules/
-frontend/dist/
-frontend/test-results/
-frontend/playwright-report/
+/backend/target/
+/frontend/node_modules/
+/frontend/dist/
+/frontend/test-results/
+/frontend/playwright-report/
 
 # OS and editors
 .DS_Store

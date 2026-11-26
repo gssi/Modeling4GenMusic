@@ -148,6 +148,9 @@ test('profile from the learner form, derivation, provenance colours and generate
   await page.getByRole('button', { name: 'Esercizio', exact: true }).click()
   await page.getByRole('button', { name: 'Genera esercizio' }).click()
   await expect(page.getByText(/^Valido/)).toBeVisible()
+  // the exercise can be listened to
+  await expect(page.getByRole('group', { name: 'Ascolto dell’esercizio' }).getByRole('button', { name: 'Ascolta' })).toBeEnabled()
+  await expect(page.getByLabel('Velocità')).toHaveValue('100')
   // the sample tune has short bars: a remark, not a failure
   await expect(page.locator('.check-list li.is-note')).toContainText('Le battute 2, 4, 6, 7 non durano 4/4')
   await expect(page.getByRole('img', { name: 'Partitura dell’esercizio generato' }).locator('svg')).toBeVisible()

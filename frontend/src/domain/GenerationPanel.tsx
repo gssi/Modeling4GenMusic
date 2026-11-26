@@ -2,7 +2,10 @@ import { useEffect } from 'react'
 import type { GenerationReport } from '../api/types'
 import { useStudio } from '../app/store'
 import { allObjects } from '../editor/modelOps'
-import { AbcPreview } from './AbcPreview'
+import { ScorePlayer } from './ScorePlayer'
+
+/** General MIDI program for each instrument of the profile metamodel. */
+const MIDI_PROGRAMS: Record<string, number> = { PIANO: 0, GUITAR: 24, FLUTE: 73 }
 
 function Checks({ report }: { report: GenerationReport }) {
   return (
@@ -32,6 +35,7 @@ export function GenerationPanel({ modelId }: { modelId: string }) {
 
   const render = allObjects(model.doc.roots).find((o) => o.eClass === 'RenderConstraint')
   const scale = Number(render?.attributes.staffScale ?? 1) || 1
+  const program = MIDI_PROGRAMS[String(model.doc.roots[0]?.attributes.instrument)] ?? 0
   const chosen = generators.find((g) => g.id === generatorId)
   const attempts = result?.attempts ?? []
   const discarded = attempts.filter((a) => a.abc !== result?.abc)
@@ -88,9 +92,7 @@ export function GenerationPanel({ modelId }: { modelId: string }) {
               {typeof meta.seconds === 'number' && meta.generator !== 'mock' && ` Tempo: ${meta.seconds} secondi.`}
               {scale !== 1 && ` Pentagramma ingrandito ${scale} volte, come richiesto dal vincolo di resa.`}
             </p>
-            <div className="score">
-              <AbcPreview abc={result.abc} scale={scale} label="Partitura dell’esercizio generato" />
-            </div>
+            <ScorePlayer abc={result.abc} scale={scale} program={program} label="Partitura dell’esercizio generato" />
             <details>
               <summary>Testo ABC</summary>
               <pre className="abc-source">{result.abc}</pre>

@@ -72,7 +72,8 @@ ollama serve
 ollama pull hf.co/mradermacher/ChatMusician-GGUF:Q4_K_M    # 4,1 GB
 ```
 
-Nella vista «Esercizio» scegli «Ollama» e premi «Genera esercizio». Ogni esercizio viene
+Nella vista «Esercizio» scegli «Ollama» e premi «Genera esercizio»; con «Ascolta» lo senti
+suonare (i campioni dello strumento si scaricano da Internet al primo ascolto). Ogni esercizio viene
 controllato rispetto alla specifica; se non la rispetta se ne chiede un altro, fino a tre. Il
 modello segue i vincoli in modo debole: aspettati che una parte delle generazioni non sia valida.
 Dettagli e misure in [docs/adr/0002-generation-with-ollama.md](docs/adr/0002-generation-with-ollama.md).

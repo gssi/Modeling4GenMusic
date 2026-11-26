@@ -16,6 +16,9 @@ Una nota per milestone. Le modifiche ai metamodelli vanno segnalate qui.
   a 1/192 di semibreve.
 - Vista «Esercizio»: scelta del generatore con stato di disponibilità, modello e tempi,
   tentativi scartati consultabili.
+- Ascolto dell'esercizio: pulsanti «Ascolta», «Da capo» e scelta della velocità, con la nota che
+  suona evidenziata sul pentagramma. Lo strumento è quello della specifica. I campioni audio si
+  scaricano da `paulrosen.github.io` al primo ascolto, quindi serve la connessione a Internet.
 
 Scostamenti da quanto concordato:
 
