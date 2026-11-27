@@ -5,9 +5,9 @@
   "metadata": {
     "generator": "ollama",
     "model": "hf.co/mradermacher/ChatMusician-GGUF:Q4_K_M",
-    "seed": 417641912,
-    "prompt": "Human: Using ABC notation, recreate the given text as a musical score.\nMeter 4/4\nKey C\nNote Length 1/8\nTempo 1/4=80\nNotes A 8 bar exercise for a beginner piano player. It practises the rhythm cB, used at least 1 times. All notes stay between C4 and G5. </s> Assistant: X:1\nT:Esercizio\nL:1/8\nQ:1/4=80\nM:4/4\nK:C\n",
-    "seconds": 3.7,
+    "seed": 1952560628,
+    "prompt": "Human: Using ABC notation, recreate the given text as a musical score.\nMeter 4/4\nKey C\nNote Length 1/8\nTempo 1/4=80\nNotes A 8 bar exercise for a beginner piano player. It practises the rhythm cB, used at least 1 times. All notes stay between C4 and G5. Use mostly quarter notes and half notes. Move mostly by step. </s> Assistant: X:1\nT:Esercizio\nL:1/8\nQ:1/4=80\nM:4/4\nK:C\n",
+    "seconds": 3.9,
     "meter": "4/4",
     "key": "C",
     "tempo": "1/4=80",
@@ -25,28 +25,40 @@
       },
       {
         "name": "barLength",
-        "passed": true,
+        "passed": false,
         "blocking": false,
-        "message": "Ogni battuta dura 4/4"
+        "message": "La battuta 8 non dura 4/4"
       },
       {
         "name": "containsPattern",
         "passed": true,
         "blocking": true,
-        "message": "Il pattern '8 8' compare 18 volte (richieste almeno 1)"
+        "message": "Il pattern '8 8' compare 10 volte (richieste almeno 1)"
       },
       {
         "name": "range",
         "passed": true,
         "blocking": true,
         "message": "Tutte le note sono nell'estensione MIDI 60–79"
+      },
+      {
+        "name": "qualityGoal",
+        "passed": false,
+        "blocking": false,
+        "message": "Complessità ritmica LOW: shortNoteShare vale 0.56, fuori da 0.0–0.3"
+      },
+      {
+        "name": "qualityGoal",
+        "passed": true,
+        "blocking": false,
+        "message": "Complessità melodica LOW: meanLeap vale 0.16, entro 0.0–0.35"
       }
     ]
   },
   "chosenAttempt": 1,
   "attempts": [
     {
-      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=80\nM:4/4\nK:C\ne2 dc A2 GF | EGAc d2 cd | e2 de f2 ed | c6 z2 |\nc2 de f2 ed | c2 de A2 GF | EGAc d2 cd | e2 fe d2 cB |]\n",
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=80\nM:4/4\nK:C\nc3 d e2 f2 | g6 ed | c2 BA G2 AB | cB AG E2 G2 |\nc2 cd e2 f2 | g6 ed | c2 BA G2 AB | A4 z2 |]\n",
       "report": {
         "valid": true,
         "checks": [
@@ -58,21 +70,33 @@
           },
           {
             "name": "barLength",
-            "passed": true,
+            "passed": false,
             "blocking": false,
-            "message": "Ogni battuta dura 4/4"
+            "message": "La battuta 8 non dura 4/4"
           },
           {
             "name": "containsPattern",
             "passed": true,
             "blocking": true,
-            "message": "Il pattern '8 8' compare 18 volte (richieste almeno 1)"
+            "message": "Il pattern '8 8' compare 10 volte (richieste almeno 1)"
           },
           {
             "name": "range",
             "passed": true,
             "blocking": true,
             "message": "Tutte le note sono nell'estensione MIDI 60–79"
+          },
+          {
+            "name": "qualityGoal",
+            "passed": false,
+            "blocking": false,
+            "message": "Complessità ritmica LOW: shortNoteShare vale 0.56, fuori da 0.0–0.3"
+          },
+          {
+            "name": "qualityGoal",
+            "passed": true,
+            "blocking": false,
+            "message": "Complessità melodica LOW: meanLeap vale 0.16, entro 0.0–0.35"
           }
         ]
       }

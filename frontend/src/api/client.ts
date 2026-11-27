@@ -7,6 +7,7 @@ import type {
   MetamodelDescriptor,
   MetamodelSummary,
   ModelDocument,
+  MetricInfo,
   ModelHeader,
   ModelLayout,
   ModelVersion,
@@ -92,9 +93,11 @@ export const api = {
 
   xmiUrl: (id: string) => url(`${model(id)}/xmi`),
 
-  derive: (learnerModelId: string, teacherIntentModelId: string, qualityModelId: string) =>
-    request<DerivationResult>(url('/derivations'), json('POST', { learnerModelId, teacherIntentModelId, qualityModelId })),
+  /** The quality model is not named: the derivation follows the reference of the intent. */
+  derive: (learnerModelId: string, teacherIntentModelId: string) =>
+    request<DerivationResult>(url('/derivations'), json('POST', { learnerModelId, teacherIntentModelId })),
   listGenerators: () => request<GeneratorInfo[]>(url('/generations/generators')),
+  listMetrics: () => request<MetricInfo[]>(url('/generations/metrics')),
   generate: (specModelId: string, qualityModelId?: string, generator?: string) =>
     request<GenerationResult>(url('/generations'), json('POST', { specModelId, qualityModelId, generator })),
 

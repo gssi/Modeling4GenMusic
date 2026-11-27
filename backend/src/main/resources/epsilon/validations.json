@@ -33,13 +33,21 @@
         "alias": "L",
         "metamodel": "http://music/profile",
         "reference": "learner"
+      },
+      {
+        "alias": "Q",
+        "metamodel": "http://music/quality",
+        "reference": "qualityModel"
       }
     ]
   },
   {
     "metamodel": "http://music/quality",
     "script": "quality.evl",
-    "model": "Q"
+    "model": "Q",
+    "tools": {
+      "metrics": "org.modeling4genmusic.studio.generation.MetricTool"
+    }
   },
   {
     "metamodel": "http://music/weaving",

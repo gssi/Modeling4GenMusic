@@ -156,15 +156,13 @@
         "rationale": "Limite di apertura della mano destra: massimo 7 semitoni (quinta giusta)"
       },
       "semitones": 7
-    }
-  ],
-  "qualityGoals": [
+    },
     {
-      "id": "C5-Q1",
+      "id": "C5-R10",
       "kind": "qualityGoal",
-      "text": "Melodic complexity: low.",
-      "enforced": false,
-      "strength": "not enforced",
+      "text": "Melodic complexity is low: “Move mostly by step”.",
+      "enforced": true,
+      "strength": "preferred",
       "origin": {
         "source": "teacher",
         "label": "The teacher",
@@ -172,24 +170,34 @@
           "CopyQualityGoals"
         ],
         "kind": "Refinement",
-        "rationale": "Obiettivo MELODIC_COMPLEXITY LOW fissato dalla docente"
-      }
+        "rationale": "Obiettivo Complessità melodica LOW fissato dalla docente"
+      },
+      "dimension": "MelodicComplexity",
+      "level": "LOW",
+      "metric": "meanLeap",
+      "min": 0,
+      "max": 0.35
     },
     {
-      "id": "C5-Q2",
+      "id": "C5-R11",
       "kind": "qualityGoal",
-      "text": "Rhythmic complexity: low.",
-      "enforced": false,
-      "strength": "not enforced",
+      "text": "Rhythmic complexity is low: “Use mostly quarter notes and half notes”.",
+      "enforced": true,
+      "strength": "preferred",
       "origin": {
-        "source": "default",
-        "label": "A default of the derivation rules",
+        "source": "qualityModel",
+        "label": "A default of the quality model",
         "rules": [
-          "FocusOtherDimensionsLow"
+          "ApplyImplicitGoals"
         ],
         "kind": "Derivation",
-        "rationale": "La docente non indica un obiettivo per RHYTHMIC_COMPLEXITY: resta basso per non distrarre dal resto"
-      }
+        "rationale": "La docente non indica un obiettivo per Complessità ritmica: vale il livello LOW previsto dal modello di qualità"
+      },
+      "dimension": "RhythmicComplexity",
+      "level": "LOW",
+      "metric": "shortNoteShare",
+      "min": 0,
+      "max": 0.3
     }
   ]
 }

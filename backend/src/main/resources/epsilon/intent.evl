@@ -1,5 +1,6 @@
 // Validation of a teaching intent. Model T conforms to http://music/exercise;
-// model L is the learner profile the intent refers to (empty when there is none).
+// model L is the learner profile the intent refers to and model Q its quality model (each one
+// empty when there is none).
 
 context T!ExerciseSpec {
 
@@ -64,13 +65,37 @@ context T!ContainsPattern {
   }
 }
 
+context T!ExerciseSpec {
+
+  constraint QualityModelForGoals {
+    guard: self.qualityGoals.notEmpty()
+    check: self.hasQualityModel()
+    message: "Gli obiettivi di qualità hanno bisogno di un modello di qualità: sceglilo nell'intento"
+  }
+}
+
 context T!QualityGoal {
 
+  // The dimensions are defined by the quality model of the intent: a goal cannot use another one's.
+  constraint GoalDimension {
+    guard: self.eContainer().hasQualityModel()
+    check: self.hasDimension() and self.dimension.eContainer() = self.eContainer().qualityModel
+    message: "Un obiettivo di qualità non indica una dimensione del modello di qualità dell'intento"
+  }
+
+  constraint OneGoalPerDimension {
+    guard: self.hasDimension()
+    check: self.eContainer().qualityGoals.select(g | g.dimension = self.dimension).size() = 1
+    message: "C'è più di un obiettivo per " + self.dimension.caption()
+  }
+
+  // Which skill limits a dimension, if any, is said by the quality model.
   critique ComplexityAboveLevel {
-    guard: self.level = T!Level#HIGH and self.eContainer().hasLearner() and self.skillArea().isDefined()
+    guard: self.level.name = "HIGH" and self.eContainer().hasLearner() and self.hasDimension()
+      and self.dimension.skillLimited
     check: not self.eContainer().learner.skills.exists(s |
-      s.area = self.skillArea() and s.level <= MAX_LEVEL_FOR_HIGH_WARNING())
-    message: "Obiettivo " + self.attribute + " HIGH, ma la skill " + self.skillArea()
+      s.area = self.dimension.skillArea and s.level <= MAX_LEVEL_FOR_HIGH_WARNING())
+    message: "Obiettivo " + self.dimension.caption() + " HIGH, ma la skill " + self.dimension.skillArea
       + " del learner è di livello basso (≤ " + MAX_LEVEL_FOR_HIGH_WARNING() + ")"
   }
 }
@@ -96,11 +121,16 @@ operation T!ExerciseSpec hasLearner() : Boolean {
   return self.learner.isDefined() and not self.learner.eIsProxy();
 }
 
-// Skill area that backs a quality attribute, undefined when there is no correspondence.
-operation T!QualityGoal skillArea() : Any {
-  if (self.attribute = T!QualityAttribute#RHYTHMIC_COMPLEXITY) { return L!SkillArea#RHYTHM; }
-  if (self.attribute = T!QualityAttribute#MELODIC_COMPLEXITY) { return L!SkillArea#PITCH_READING; }
-  return null;
+operation T!ExerciseSpec hasQualityModel() : Boolean {
+  return self.qualityModel.isDefined() and not self.qualityModel.eIsProxy();
+}
+
+operation T!QualityGoal hasDimension() : Boolean {
+  return self.dimension.isDefined() and not self.dimension.eIsProxy();
+}
+
+operation Q!QualityDimension caption() : String {
+  return self.label.isDefined() and self.label.trim().length() > 0 ? self.label : self.name;
 }
 
 operation T!Pattern samePattern(other : T!Pattern) : Boolean {

@@ -116,7 +116,7 @@ test('a validation script is edited only when it parses and runs, and can go bac
   // a syntax error is reported with its line and blocks saving
   await text.fill(original.replace('critique TempoAboveComfort {', 'critique TempoAboveComfort'))
   await expect(page.getByText('C’è un errore di sintassi')).toBeVisible()
-  await expect(page.getByRole('button', { name: /^riga 7, colonna/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^riga 8, colonna/ })).toBeVisible()
   await expect(save).toBeDisabled()
 
   // right syntax but a property that does not exist: the trial run on the models finds it

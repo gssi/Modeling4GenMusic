@@ -23,113 +23,119 @@
     </sources>
     <target href="c2.intent.derived.xmi#spec"/>
   </links>
-  <links xsi:type="wv:Refinement" xmi:id="link_4" rule="CopyIntent" rationale="Tempo richiesto dalla docente" targetFeature="requestedBpm">
-    <sources xmi:id="link_4_source_1" origin="TEACHER" feature="requestedBpm">
+  <links xsi:type="wv:Refinement" xmi:id="link_4" rule="CopyIntent" rationale="Modello di qualità scelto dalla docente" targetFeature="qualityModel">
+    <sources xmi:id="link_4_source_1" origin="TEACHER" feature="qualityModel">
       <element href="c2.intent.xmi#intent"/>
     </sources>
     <target href="c2.intent.derived.xmi#spec"/>
   </links>
-  <links xsi:type="wv:Refinement" xmi:id="link_5" rule="StrengthenLearningPattern" rationale="Il pattern '8. 16' è in fase di apprendimento: diventa obbligatorio, con almeno 3 occorrenze">
-    <sources xmi:id="link_5_source_1" origin="TEACHER">
+  <links xsi:type="wv:Refinement" xmi:id="link_5" rule="CopyIntent" rationale="Tempo richiesto dalla docente" targetFeature="requestedBpm">
+    <sources xmi:id="link_5_source_1" origin="TEACHER" feature="requestedBpm">
+      <element href="c2.intent.xmi#intent"/>
+    </sources>
+    <target href="c2.intent.derived.xmi#spec"/>
+  </links>
+  <links xsi:type="wv:Refinement" xmi:id="link_6" rule="StrengthenLearningPattern" rationale="Il pattern '8. 16' è in fase di apprendimento: diventa obbligatorio, con almeno 3 occorrenze">
+    <sources xmi:id="link_6_source_1" origin="TEACHER">
       <element href="c2.intent.xmi#c_contains_dotted"/>
     </sources>
-    <sources xmi:id="link_5_source_2" feature="status">
+    <sources xmi:id="link_6_source_2" feature="status">
       <element href="c2.profile.xmi#pm_dotted"/>
     </sources>
     <target href="c2.intent.derived.xmi#c_contains_1"/>
   </links>
-  <links xsi:type="wv:Refinement" xmi:id="link_6" rule="StrengthenLearningPattern" rationale="Pattern richiesto dalla docente">
-    <sources xmi:id="link_6_source_1" origin="TEACHER">
+  <links xsi:type="wv:Refinement" xmi:id="link_7" rule="StrengthenLearningPattern" rationale="Pattern richiesto dalla docente">
+    <sources xmi:id="link_7_source_1" origin="TEACHER">
       <element href="c2.intent.xmi#p_dotted"/>
     </sources>
     <target href="c2.intent.derived.xmi#c_contains_1_pattern"/>
   </links>
-  <links xsi:type="wv:Derivation" xmi:id="link_7" rule="ExcludeNotIntroduced" rationale="Il pattern '16 8.' non è ancora stato introdotto a giulia: viene escluso">
-    <sources xmi:id="link_7_source_1" feature="status">
+  <links xsi:type="wv:Derivation" xmi:id="link_8" rule="ExcludeNotIntroduced" rationale="Il pattern '16 8.' non è ancora stato introdotto a giulia: viene escluso">
+    <sources xmi:id="link_8_source_1" feature="status">
       <element href="c2.profile.xmi#pm_reverse_dotted"/>
     </sources>
     <target href="c2.intent.derived.xmi#c_excludes_1"/>
   </links>
-  <links xsi:type="wv:Derivation" xmi:id="link_8" rule="ExcludeNotIntroduced" rationale="Pattern preso dal profilo">
-    <sources xmi:id="link_8_source_1" feature="expression">
+  <links xsi:type="wv:Derivation" xmi:id="link_9" rule="ExcludeNotIntroduced" rationale="Pattern preso dal profilo">
+    <sources xmi:id="link_9_source_1" feature="expression">
       <element href="c2.profile.xmi#pm_reverse_dotted"/>
     </sources>
     <target href="c2.intent.derived.xmi#c_excludes_1_pattern"/>
   </links>
-  <links xsi:type="wv:Derivation" xmi:id="link_9" rule="RangeFromLearner" rationale="Estensione di giulia: dalla nota MIDI 60 alla 79">
-    <sources xmi:id="link_9_source_1" feature="lowestMidi">
+  <links xsi:type="wv:Derivation" xmi:id="link_10" rule="RangeFromLearner" rationale="Estensione di giulia: dalla nota MIDI 60 alla 79">
+    <sources xmi:id="link_10_source_1" feature="lowestMidi">
       <element href="c2.profile.xmi#giulia"/>
     </sources>
-    <sources xmi:id="link_9_source_2" feature="highestMidi">
+    <sources xmi:id="link_10_source_2" feature="highestMidi">
       <element href="c2.profile.xmi#giulia"/>
     </sources>
     <target href="c2.intent.derived.xmi#c_range_1"/>
   </links>
-  <links xsi:type="wv:Refinement" xmi:id="link_10" rule="CopyQualityGoals" rationale="Obiettivo RHYTHMIC_COMPLEXITY MEDIUM fissato dalla docente">
-    <sources xmi:id="link_10_source_1" origin="TEACHER">
+  <links xsi:type="wv:Refinement" xmi:id="link_11" rule="CopyQualityGoals" rationale="Obiettivo Complessità ritmica MEDIUM fissato dalla docente">
+    <sources xmi:id="link_11_source_1" origin="TEACHER">
       <element href="c2.intent.xmi#qg_rhythm"/>
     </sources>
     <target href="c2.intent.derived.xmi#qg_rhythmic_complexity"/>
   </links>
-  <links xsi:type="wv:Derivation" xmi:id="link_11" rule="InstrumentFromLearner" rationale="Strumento di giulia: PIANO" targetFeature="instrument">
-    <sources xmi:id="link_11_source_1" feature="instrument">
+  <links xsi:type="wv:Derivation" xmi:id="link_12" rule="InstrumentFromLearner" rationale="Strumento di giulia: PIANO" targetFeature="instrument">
+    <sources xmi:id="link_12_source_1" feature="instrument">
       <element href="c2.profile.xmi#giulia"/>
     </sources>
     <target href="c2.intent.derived.xmi#spec"/>
   </links>
-  <links xsi:type="wv:Derivation" xmi:id="link_12" rule="InstrumentFromLearner" rationale="L'esercizio è per giulia" targetFeature="learner">
-    <sources xmi:id="link_12_source_1">
+  <links xsi:type="wv:Derivation" xmi:id="link_13" rule="InstrumentFromLearner" rationale="L'esercizio è per giulia" targetFeature="learner">
+    <sources xmi:id="link_13_source_1">
       <element href="c2.profile.xmi#giulia"/>
     </sources>
     <target href="c2.intent.derived.xmi#spec"/>
   </links>
-  <links xsi:type="wv:ConflictFix" xmi:id="link_13" rule="TempoLimit" rationale="Il tempo richiesto (90 bpm) supera il tempo comodo di giulia: limitato a 72 bpm" targetFeature="maxBpm" critique="TempoAboveComfort" originalValue="90" newValue="72">
-    <sources xmi:id="link_13_source_1" origin="TEACHER" feature="requestedBpm">
+  <links xsi:type="wv:ConflictFix" xmi:id="link_14" rule="TempoLimit" rationale="Il tempo richiesto (90 bpm) supera il tempo comodo di giulia: limitato a 72 bpm" targetFeature="maxBpm" critique="TempoAboveComfort" originalValue="90" newValue="72">
+    <sources xmi:id="link_14_source_1" origin="TEACHER" feature="requestedBpm">
       <element href="c2.intent.xmi#intent"/>
     </sources>
-    <sources xmi:id="link_13_source_2" feature="comfortableBpm">
+    <sources xmi:id="link_14_source_2" feature="comfortableBpm">
       <element href="c2.profile.xmi#giulia"/>
     </sources>
     <target href="c2.intent.derived.xmi#spec"/>
   </links>
-  <links xsi:type="wv:Derivation" xmi:id="link_14" rule="ApplyNeeds" rationale="Ipovisione: il pentagramma va ingrandito almeno di 1.5 volte">
-    <sources xmi:id="link_14_source_1" feature="value">
+  <links xsi:type="wv:Derivation" xmi:id="link_15" rule="ApplyNeeds" rationale="Ipovisione: il pentagramma va ingrandito almeno di 1.5 volte">
+    <sources xmi:id="link_15_source_1" feature="value">
       <element href="c2.profile.xmi#need_lowvision_minStaffScale"/>
     </sources>
-    <sources xmi:id="link_14_source_2" origin="NEED_CATALOG">
+    <sources xmi:id="link_15_source_2" origin="NEED_CATALOG">
       <element href="default.needs.xmi#LowVision_render"/>
     </sources>
     <target href="c2.intent.derived.xmi#c_render_1"/>
   </links>
-  <links xsi:type="wv:Derivation" xmi:id="link_15" rule="ApplyNeeds" rationale="Limite di apertura della mano destra: massimo 9 semitoni (sesta maggiore)">
-    <sources xmi:id="link_15_source_1" feature="value">
+  <links xsi:type="wv:Derivation" xmi:id="link_16" rule="ApplyNeeds" rationale="Limite di apertura della mano destra: massimo 9 semitoni (sesta maggiore)">
+    <sources xmi:id="link_16_source_1" feature="value">
       <element href="c2.profile.xmi#need_handspan_hand"/>
     </sources>
-    <sources xmi:id="link_15_source_2" feature="value">
+    <sources xmi:id="link_16_source_2" feature="value">
       <element href="c2.profile.xmi#need_handspan_maxStretchSemitones"/>
     </sources>
-    <sources xmi:id="link_15_source_3" feature="value">
+    <sources xmi:id="link_16_source_3" feature="value">
       <element href="c2.profile.xmi#need_handspan_maxStretchSemitones"/>
     </sources>
-    <sources xmi:id="link_15_source_4" origin="NEED_CATALOG">
+    <sources xmi:id="link_16_source_4" origin="NEED_CATALOG">
       <element href="default.needs.xmi#HandSpanLimit_span"/>
     </sources>
     <target href="c2.intent.derived.xmi#c_span_1"/>
   </links>
-  <links xsi:type="wv:Derivation" xmi:id="link_16" rule="FocusOtherDimensionsLow" rationale="La docente non indica un obiettivo per MELODIC_COMPLEXITY: resta basso per non distrarre dal resto">
-    <sources xmi:id="link_16_source_1" origin="RULE_DEFAULT">
-      <element href="c2.intent.xmi#intent"/>
+  <links xsi:type="wv:Derivation" xmi:id="link_17" rule="ApplyImplicitGoals" rationale="La docente non indica un obiettivo per Complessità melodica: vale il livello LOW previsto dal modello di qualità">
+    <sources xmi:id="link_17_source_1" origin="QUALITY_MODEL" feature="defaultLevel">
+      <element href="piano.quality.xmi#MelodicComplexity"/>
     </sources>
     <target href="c2.intent.derived.xmi#qg_melodic_complexity"/>
   </links>
-  <links xsi:type="wv:Resolution" xmi:id="link_17" rule="ResolveThresholds" rationale="RHYTHMIC_COMPLEXITY MEDIUM significa rhythmScore tra 0.3 e 0.6">
-    <sources xmi:id="link_17_source_1" origin="QUALITY_MODEL">
+  <links xsi:type="wv:Resolution" xmi:id="link_18" rule="ResolveThresholds" rationale="Complessità ritmica MEDIUM significa shortNoteShare tra 0.3 e 0.6">
+    <sources xmi:id="link_18_source_1" origin="QUALITY_MODEL">
       <element href="piano.quality.xmi#r_med"/>
     </sources>
     <target href="c2.intent.derived.xmi#qg_rhythmic_complexity"/>
   </links>
-  <links xsi:type="wv:Resolution" xmi:id="link_18" rule="ResolveThresholds" rationale="MELODIC_COMPLEXITY LOW significa melodicScore tra 0.0 e 0.35">
-    <sources xmi:id="link_18_source_1" origin="QUALITY_MODEL">
+  <links xsi:type="wv:Resolution" xmi:id="link_19" rule="ResolveThresholds" rationale="Complessità melodica LOW significa meanLeap tra 0.0 e 0.35">
+    <sources xmi:id="link_19_source_1" origin="QUALITY_MODEL">
       <element href="piano.quality.xmi#m_low"/>
     </sources>
     <target href="c2.intent.derived.xmi#qg_melodic_complexity"/>

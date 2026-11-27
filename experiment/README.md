@@ -43,7 +43,7 @@ npm run build:experiment    # static site in frontend/dist-experiment/
   playback, the files to download. Nothing is collected: answers go in a separate questionnaire
   and cite the ids (`C3-R2`).
 - **Researcher view** (add `?view=full` to the address, before the `#`): the automatic checks, all
-  the attempts, the request sent to the model, the quality goals and the rule behind each
+  the attempts, the request sent to the model and the rule behind each
   requirement. The expert view has no link to it, but the files it reads are public.
 
 The workflow `.github/workflows/pages.yml` publishes the site on GitHub Pages at every push to
@@ -51,12 +51,15 @@ The workflow `.github/workflows/pages.yml` publishes the site on GitHub Pages at
 
 ## How the exercises were obtained
 
-One run per case, kept as it came out: no exercise was picked by hand or corrected. The generator
+One run per case, kept as it comes out: no exercise is picked by hand or corrected. The generator
 writes up to five exercises and keeps the first that passes the automatic checks, or the best one
-when none does. In the published run C1, C2 and C4 pass every check; C3 and C5 have notes outside
-the required range after five attempts.
+when none does.
 
-To run it again (the results will differ: the seed is random):
+In the published run C1, C2, C3 and C4 pass every blocking check; C5 has notes outside the required
+range after five attempts. The quality goals are met only in part: for instance C1 and C2 have
+more short notes than their rhythmic complexity asks for.
+
+To run the cases (two runs differ: the seed is random):
 
 ```
 ollama serve
@@ -75,9 +78,11 @@ The backend runs on a workspace of its own, so the models of `workspace/` are no
 
 ## Limits to keep in mind when reading the answers
 
-- The quality goals (rhythmic and melodic complexity) are in the derived spec but are neither told
-  to the music model nor checked: they are left out of the expert view.
+- The quality goals (rhythmic and melodic complexity) are told to the music model with a sentence
+  and measured on the exercise with a simple metric, but they never make an exercise invalid:
+  they are listed among the requirements as preferences. The metrics and their thresholds are a
+  first proposal, not yet calibrated.
 - The enlargement of the staff is applied by the page that shows the score, not by the generator.
 - An exercise is a single melodic line: requirements about one hand are checked on all the notes.
-- A requirement marked as a preference comes from a pattern the learner already masters.
+- A requirement marked as a preference is a quality goal, or a pattern the learner already masters.
 - The title printed on the scores (“Esercizio”) is the one the generator writes.

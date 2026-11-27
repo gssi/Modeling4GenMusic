@@ -31,6 +31,12 @@ public class GenerationController {
         return service.generators();
     }
 
+    /** The measures that a dimension of a quality model can be based on. */
+    @GetMapping("/metrics")
+    public List<GenerationService.MetricInfo> metrics() {
+        return service.metrics();
+    }
+
     @PostMapping
     public GenerationService.Generation generate(
             @RequestParam(name = "workspaceId", defaultValue = "default") String workspaceId,

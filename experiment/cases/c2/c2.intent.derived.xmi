@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ex:ExerciseSpec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ex="http://music/exercise" xmi:id="spec" key="G" meter="4/4" bars="8" maxBpm="72" requestedBpm="90">
   <learner href="c2.profile.xmi#giulia"/>
+  <qualityModel href="piano.quality.xmi#piano_quality"/>
   <constraints xsi:type="ex:ContainsPattern" xmi:id="c_contains_1" minOccurrences="3">
     <pattern xmi:id="c_contains_1_pattern" expression="8. 16"/>
   </constraints>
@@ -10,6 +11,10 @@
   <constraints xsi:type="ex:RangeConstraint" xmi:id="c_range_1" lowestMidi="60" highestMidi="79"/>
   <constraints xsi:type="ex:RenderConstraint" xmi:id="c_render_1" staffScale="1.5"/>
   <constraints xsi:type="ex:SpanConstraint" xmi:id="c_span_1" hand="RIGHT" maxSimultaneousSemitones="9" maxStretchInPosition="9"/>
-  <qualityGoals xmi:id="qg_rhythmic_complexity" level="MEDIUM"/>
-  <qualityGoals xmi:id="qg_melodic_complexity" attribute="MELODIC_COMPLEXITY"/>
+  <qualityGoals xmi:id="qg_rhythmic_complexity" level="MEDIUM">
+    <dimension href="piano.quality.xmi#RhythmicComplexity"/>
+  </qualityGoals>
+  <qualityGoals xmi:id="qg_melodic_complexity">
+    <dimension href="piano.quality.xmi#MelodicComplexity"/>
+  </qualityGoals>
 </ex:ExerciseSpec>

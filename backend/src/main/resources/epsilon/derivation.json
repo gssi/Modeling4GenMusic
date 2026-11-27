@@ -3,7 +3,7 @@
   "inputs": [
     { "alias": "L", "metamodel": "http://music/profile", "parameter": "learnerModelId", "validated": true },
     { "alias": "T", "metamodel": "http://music/exercise", "parameter": "teacherIntentModelId", "primary": true, "validated": true },
-    { "alias": "Q", "metamodel": "http://music/quality", "parameter": "qualityModelId" },
+    { "alias": "Q", "metamodel": "http://music/quality", "via": "T", "reference": "qualityModel", "validated": true },
     { "alias": "N", "metamodel": "http://music/needs", "via": "L", "reference": "catalog", "validated": true }
   ],
   "outputs": [

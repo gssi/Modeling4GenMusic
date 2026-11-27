@@ -2,21 +2,35 @@
 package quality;
 
 import "profile.ecore";
-import "exercise.ecore";
 
+// The dimensions along which an exercise can be asked to be simple or demanding. They are data:
+// a dimension is added to a quality model, not to this metamodel.
 class QualityModel {
   attr profile.Instrument instrument;
-  val MetricBinding[*] bindings;
+  val QualityDimension[*] dimensions;
 }
 
-class MetricBinding {
-  attr exercise.QualityAttribute attribute;
-  attr String metric;
+class QualityDimension {
+  attr String[1] name;
+  attr String label;
+  attr String description;
+  attr String[1] metric;             // name of the measure taken on an exercise, between 0 and 1
+  attr boolean skillLimited;         // when true, a HIGH goal is warned about for a learner weak in skillArea
+  attr profile.SkillArea skillArea;
+  attr boolean implicit;             // when true, a spec gets this dimension at defaultLevel even if nobody asks
+  attr Level defaultLevel;
   val Band[*] bands;
 }
 
 class Band {
-  attr exercise.Level level;
+  attr Level level;
   attr double min;
   attr double max;
+  attr String hint;                  // what to tell the music model for this level, in English
+}
+
+enum Level {
+  LOW = 0;
+  MEDIUM = 1;
+  HIGH = 2;
 }

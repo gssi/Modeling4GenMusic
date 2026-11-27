@@ -4,6 +4,7 @@ import { boundsHint, newNeed, parameterValue, readCatalog, slotOf, typeOf } from
 import { midiName } from './notes'
 import { WEAVING, buildProvenance, elementTints, untraced } from './provenance'
 import { bandIssues } from './quality'
+import { dimensionOf, freeDimensions, newDimensionName, newGoal, readQualityModel } from './qualityModel'
 import { isValidRhythm, normalizeRhythm, parseRhythm, rhythmToAbc, rhythmToAbcNotes, rhythmUnits } from './rhythm'
 
 const tokens = (expression: string) => {
@@ -244,5 +245,55 @@ describe('needs typed by a catalog', () => {
     expect(boundsHint(cm)).toBe('Almeno 1.')
     expect(boundsHint(count)).toBe('Al massimo 5.')
     expect(boundsHint(hand)).toBeUndefined()
+  })
+})
+
+describe('quality goals on the dimensions of a quality model', () => {
+  const dimension = (id: string, attributes: Record<string, string | boolean>) => ({ id, eClass: 'QualityDimension', attributes, contents: {}, references: {} })
+  const doc = {
+    id: 'piano.quality',
+    name: 'piano.quality',
+    metamodel: 'http://music/quality',
+    version: 1,
+    roots: [
+      {
+        id: 'piano_quality',
+        eClass: 'QualityModel',
+        attributes: {},
+        contents: {
+          dimensions: [
+            dimension('RhythmicComplexity', { name: 'RhythmicComplexity', label: 'Complessità ritmica', metric: 'shortNoteShare', description: 'Quanto sono fitte le durate.' }),
+            dimension('Density', { name: 'Density', metric: 'noteDensity' }),
+          ],
+        },
+        references: {},
+      },
+    ],
+  }
+  const quality = readQualityModel(doc)!
+  const [rhythm, density] = quality.dimensions
+
+  it('reads the dimensions, labelled by their name when they have no label', () => {
+    expect(quality).toMatchObject({ model: 'piano.quality', id: 'piano_quality' })
+    expect(rhythm).toEqual({ id: 'RhythmicComplexity', name: 'RhythmicComplexity', label: 'Complessità ritmica', description: 'Quanto sono fitte le durate.', metric: 'shortNoteShare' })
+    expect(density.label).toBe('Density')
+    expect(readQualityModel({ ...doc, roots: [] })).toBeNull()
+  })
+
+  it('creates a goal that points to its dimension and offers each dimension once', () => {
+    const goal = newGoal('qualityGoal1', quality, rhythm, 'MEDIUM')
+    expect(goal).toMatchObject({ eClass: 'QualityGoal', attributes: { level: 'MEDIUM' }, references: { dimension: [{ model: 'piano.quality', id: 'RhythmicComplexity' }] } })
+    expect(dimensionOf(goal, quality)).toBe(rhythm)
+    expect(freeDimensions([goal], quality)).toEqual([density])
+    expect(freeDimensions([], null)).toEqual([])
+    // a goal on a dimension of another model is not one of this model
+    const foreign = { ...goal, references: { dimension: [{ model: 'other.quality', id: 'RhythmicComplexity' }] } }
+    expect(dimensionOf(foreign, quality)).toBeUndefined()
+    expect(freeDimensions([foreign], quality)).toEqual([rhythm, density])
+  })
+
+  it('names a new dimension', () => {
+    expect(newDimensionName([])).toBe('Dimension1')
+    expect(newDimensionName(['Dimension1', 'Density', 'Dimension2'])).toBe('Dimension3')
   })
 })

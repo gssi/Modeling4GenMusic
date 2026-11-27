@@ -4,6 +4,9 @@
     <eStructuralFeatures xsi:type="ecore:EReference" name="learner">
       <eType href="profile.ecore#//Learner" xsi:type="ecore:EClass"/>
     </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="qualityModel">
+      <eType href="quality.ecore#//QualityModel" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="instrument">
       <eType href="profile.ecore#//Instrument" xsi:type="ecore:EEnum"/>
     </eStructuralFeatures>
@@ -45,27 +48,20 @@
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="expression" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="QualityGoal">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="attribute" eType="#//QualityAttribute"/>
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="level" eType="#//Level"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="dimension" lowerBound="1">
+      <eType href="quality.ecore#//QualityDimension" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="level">
+      <eType href="quality.ecore#//Level" xsi:type="ecore:EEnum"/>
+    </eStructuralFeatures>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EEnum" name="Strength">
     <eLiterals xsi:type="ecore:EEnumLiteral" name="HARD"/>
     <eLiterals xsi:type="ecore:EEnumLiteral" name="SOFT" value="1"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EEnum" name="Level">
-    <eLiterals xsi:type="ecore:EEnumLiteral" name="LOW"/>
-    <eLiterals xsi:type="ecore:EEnumLiteral" name="MEDIUM" value="1"/>
-    <eLiterals xsi:type="ecore:EEnumLiteral" name="HIGH" value="2"/>
-  </eClassifiers>
   <eClassifiers xsi:type="ecore:EEnum" name="PatternKind">
     <eLiterals xsi:type="ecore:EEnumLiteral" name="RHYTHM"/>
     <eLiterals xsi:type="ecore:EEnumLiteral" name="INTERVAL" value="1"/>
     <eLiterals xsi:type="ecore:EEnumLiteral" name="HARMONY" value="2"/>
-  </eClassifiers>
-  <eClassifiers xsi:type="ecore:EEnum" name="QualityAttribute">
-    <eLiterals xsi:type="ecore:EEnumLiteral" name="RHYTHMIC_COMPLEXITY"/>
-    <eLiterals xsi:type="ecore:EEnumLiteral" name="MELODIC_COMPLEXITY" value="1"/>
-    <eLiterals xsi:type="ecore:EEnumLiteral" name="DENSITY" value="2"/>
-    <eLiterals xsi:type="ecore:EEnumLiteral" name="LENGTH" value="3"/>
   </eClassifiers>
 </ecore:EPackage>

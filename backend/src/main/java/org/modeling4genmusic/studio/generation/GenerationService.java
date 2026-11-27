@@ -86,7 +86,9 @@ public class GenerationService {
             GenerationResult result = generator.generate(spec, new GenerationContext(quality, attempt, rejected));
             Attempt current = new Attempt(result.abc(), validator.validate(result.abc(), spec, quality));
             attempts.add(current);
-            if (best == null || failures(current) < failures(best)) {
+            // Fewer broken constraints first; with as many, the exercise closer to the quality goals.
+            if (best == null || failures(current) < failures(best)
+                    || (failures(current) == failures(best) && missedGoals(current) < missedGoals(best))) {
                 best = current;
                 chosen = result;
             }
@@ -103,6 +105,23 @@ public class GenerationService {
 
     private static long failures(Attempt attempt) {
         return attempt.report().checks().stream().filter(c -> c.blocking() && !c.passed()).count();
+    }
+
+    /** Quality goals the exercise is not within; an exercise that cannot be read misses them all. */
+    private static long missedGoals(Attempt attempt) {
+        if (attempt.report().checks().stream().anyMatch(c -> "abc".equals(c.name()) && !c.passed())) {
+            return Long.MAX_VALUE;
+        }
+        return attempt.report().checks().stream()
+                .filter(c -> BasicExerciseValidator.QUALITY_GOAL.equals(c.name()) && !c.passed()).count();
+    }
+
+    /** The measures a dimension of a quality model can name. */
+    public record MetricInfo(String name, String description) {
+    }
+
+    public List<MetricInfo> metrics() {
+        return Metrics.all().stream().map(m -> new MetricInfo(m.name(), m.description())).toList();
     }
 
     private ExerciseGenerator generator(String id) {

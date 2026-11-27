@@ -197,7 +197,12 @@ class ModelApiTest {
                 .andExpect(jsonPath("$.roots[0].contents.constraints[0].contents.pattern[0].attributes.expression")
                         .value("8. 16"));
         mvc.perform(get("/api/models/piano.quality"))
-                .andExpect(jsonPath("$.roots[0].contents.bindings[1].contents.bands[0].id").value("m_low"));
+                .andExpect(jsonPath("$.roots[0].contents.dimensions[1].contents.bands[0].id").value("m_low"))
+                .andExpect(jsonPath("$.roots[0].contents.dimensions[1].attributes.metric").value("meanLeap"));
+        mvc.perform(get("/api/models/giulia.intent"))
+                .andExpect(jsonPath("$.roots[0].references.qualityModel[0].model").value("piano.quality"))
+                .andExpect(jsonPath("$.roots[0].contents.qualityGoals[0].references.dimension[0].id")
+                        .value("RhythmicComplexity"));
         mvc.perform(multipart("/api/models/import")
                 .file(new MockMultipartFile("file", "broken.xmi", "text/xml", "<nope".getBytes())))
                 .andExpect(status().isBadRequest());

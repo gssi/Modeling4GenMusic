@@ -216,3 +216,9 @@ export interface GeneratorInfo {
   reason: string | null
   isDefault: boolean
 }
+
+/** A measure the server can take on an exercise: what a dimension of a quality model is based on. */
+export interface MetricInfo {
+  name: string
+  description: string
+}

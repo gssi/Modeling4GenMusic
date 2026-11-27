@@ -30,6 +30,7 @@ class RoundTripTest {
     private static final String CATALOG = "catalogo";
     private static final String EXERCISE = "http://music/exercise";
     private static final String QUALITY = "http://music/quality";
+    private static final String QUALITY_MODEL = "qualita";
     private static final String WEAVING = "http://music/weaving";
 
     @TempDir
@@ -109,6 +110,8 @@ class RoundTripTest {
         ModelDocument saved = save(NEEDS, "Catalogo", null, catalogRoots());
         assertThat(saved.id()).isEqualTo(CATALOG);
         assertThat(store.get(WS, CATALOG).roots()).isEqualTo(catalogRoots());
+        // The quality model the goals of the exercises refer to.
+        assertThat(save(QUALITY, "Qualita", null, qualityRoots()).id()).isEqualTo(QUALITY_MODEL);
     }
 
     private static List<ObjectNode> exerciseRoots(String learnerModel) {
@@ -118,21 +121,25 @@ class RoundTripTest {
                 null);
         ObjectNode span = leaf("c2", "SpanConstraint", Map.of("strength", "HARD", "weight", 1.0, "hand", "RIGHT",
                 "maxSimultaneousSemitones", 9, "maxStretchInPosition", 9));
-        ObjectNode goal = leaf("g1", "QualityGoal", Map.of("attribute", "RHYTHMIC_COMPLEXITY", "level", "MEDIUM"));
+        ObjectNode goal = node("g1", "QualityGoal", Map.of("level", "MEDIUM"), null,
+                Map.of("dimension", List.of(new Ref(QUALITY_MODEL, "d1", null))));
         return List.of(node("spec", "ExerciseSpec",
                 Map.of("instrument", "PIANO", "key", "G", "meter", "4/4", "bars", 8, "maxBpm", 0, "requestedBpm",
                         90),
                 Map.of("constraints", List.of(contains, span), "qualityGoals", List.of(goal)),
-                Map.of("learner", List.of(new Ref(learnerModel, "giulia", null)))));
+                Map.of("learner", List.of(new Ref(learnerModel, "giulia", null)), "qualityModel",
+                        List.of(new Ref(QUALITY_MODEL, "qm", null)))));
     }
 
     private static List<ObjectNode> qualityRoots() {
-        ObjectNode band = leaf("r_med", "Band", Map.of("level", "MEDIUM", "min", 0.3, "max", 0.6));
-        ObjectNode binding = node("b1", "MetricBinding",
-                Map.of("attribute", "RHYTHMIC_COMPLEXITY", "metric", "rhythmScore"), Map.of("bands", List.of(band)),
-                null);
+        ObjectNode band = leaf("r_med", "Band",
+                Map.of("level", "MEDIUM", "min", 0.3, "max", 0.6, "hint", "Mix quarter notes with eighth notes."));
+        ObjectNode dimension = node("d1", "QualityDimension",
+                Map.of("name", "RhythmicComplexity", "label", "Complessità ritmica", "metric", "shortNoteShare",
+                        "skillLimited", true, "skillArea", "RHYTHM", "implicit", true, "defaultLevel", "LOW"),
+                Map.of("bands", List.of(band)), null);
         return List.of(node("qm", "QualityModel", Map.of("instrument", "PIANO"),
-                Map.of("bindings", List.of(binding)), null));
+                Map.of("dimensions", List.of(dimension)), null));
     }
 
     @Test

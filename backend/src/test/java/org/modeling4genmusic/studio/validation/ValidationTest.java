@@ -42,6 +42,12 @@ class ValidationTest {
         ObjectMapper json = new ObjectMapper();
         store = new WorkspaceStore(properties, registry, json);
         service = new ValidationService(store, new EmfValidator(), new EvlValidator(registry, json, new RuleStore(properties)));
+        try {
+            store.importXmi(WS, "piano.quality.xmi", java.nio.file.Files.readAllBytes(Path.of("../fixtures/giulia/piano.quality.xmi")),
+                    null, null);
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
     }
 
     // ---------------------------------------------------------------- builders
@@ -99,8 +105,16 @@ class ValidationTest {
                 null);
     }
 
-    private static ObjectNode goal(String id, String attribute, String level) {
-        return leaf(id, "QualityGoal", Map.of("attribute", attribute, "level", level));
+    private static final String PIANO = "piano.quality";
+
+    /** A goal on a dimension of the quality model of the fixtures, which {@link #setUp()} imports. */
+    private static ObjectNode goal(String id, String dimension, String level) {
+        return goal(id, PIANO, dimension, level);
+    }
+
+    private static ObjectNode goal(String id, String qualityModel, String dimension, String level) {
+        return node(id, "QualityGoal", Map.of("level", level), null,
+                Map.of("dimension", List.of(new Ref(qualityModel, dimension, null))));
     }
 
     private static ObjectNode intent(String learnerModel, int requestedBpm, int maxBpm, List<ObjectNode> constraints,
@@ -111,7 +125,18 @@ class ValidationTest {
         return node("intent", "ExerciseSpec",
                 Map.of("key", "G", "meter", "4/4", "bars", 8, "requestedBpm", requestedBpm, "maxBpm", maxBpm),
                 contents,
-                learnerModel == null ? null : Map.of("learner", List.of(new Ref(learnerModel, "giulia", null))));
+                references(learnerModel, goals.isEmpty() ? null : PIANO));
+    }
+
+    private static Map<String, List<Ref>> references(String learnerModel, String qualityModel) {
+        Map<String, List<Ref>> references = new LinkedHashMap<>();
+        if (learnerModel != null) {
+            references.put("learner", List.of(new Ref(learnerModel, "giulia", null)));
+        }
+        if (qualityModel != null) {
+            references.put("qualityModel", List.of(new Ref(qualityModel, "piano_quality", null)));
+        }
+        return references;
     }
 
     private static ObjectNode band(String id, String level, double min, double max) {
@@ -119,9 +144,9 @@ class ValidationTest {
     }
 
     private static ObjectNode quality(List<ObjectNode> bands) {
-        ObjectNode binding = node("b_rhythm", "MetricBinding",
-                Map.of("attribute", "RHYTHMIC_COMPLEXITY", "metric", "rhythmScore"), Map.of("bands", bands), null);
-        return node("qm", "QualityModel", Map.of("instrument", "PIANO"), Map.of("bindings", List.of(binding)), null);
+        ObjectNode dimension = node("b_rhythm", "QualityDimension",
+                Map.of("name", "RhythmicComplexity", "metric", "shortNoteShare"), Map.of("bands", bands), null);
+        return node("qm", "QualityModel", Map.of("instrument", "PIANO"), Map.of("dimensions", List.of(dimension)), null);
     }
 
     private static List<String> names(List<Diagnostic> diagnostics) {
@@ -195,7 +220,7 @@ class ValidationTest {
         String id = save(EXERCISE, "Intento", "intent", intent(giulia(), 60, 0,
                 List.of(patternConstraint("c1", "ContainsPattern", "8. 16"),
                         patternConstraint("c2", "ExcludesPattern", "16 8.")),
-                List.of(goal("g1", "RHYTHMIC_COMPLEXITY", "MEDIUM"), goal("g2", "MELODIC_COMPLEXITY", "HIGH"))));
+                List.of(goal("g1", "RhythmicComplexity", "MEDIUM"), goal("g2", "MelodicComplexity", "HIGH"))));
         assertThat(service.validate(WS, id)).isEmpty();
     }
 
@@ -245,7 +270,7 @@ class ValidationTest {
     @Test
     void complexityAboveLevel() {
         String id = save(EXERCISE, "Intento", "intent", intent(giulia(), 60, 0, List.of(),
-                List.of(goal("g1", "RHYTHMIC_COMPLEXITY", "HIGH"), goal("g2", "DENSITY", "HIGH"))));
+                List.of(goal("g1", "RhythmicComplexity", "HIGH"), goal("g2", "Density", "HIGH"))));
         Diagnostic diagnostic = only(service.validate(WS, id), "ComplexityAboveLevel");
         assertThat(diagnostic.severity()).isEqualTo(Severity.WARNING);
         assertThat(diagnostic.elementId()).isEqualTo("g1");
@@ -254,14 +279,59 @@ class ValidationTest {
 
     @Test
     void intentRulesNeedALearnerAndSkipDerivedSpecs() {
-        List<ObjectNode> goals = List.of(goal("g1", "RHYTHMIC_COMPLEXITY", "HIGH"));
+        List<ObjectNode> goals = List.of(goal("g1", "RhythmicComplexity", "HIGH"));
         String noLearner = save(EXERCISE, "Senza learner", "intent", intent(null, 90, 0, List.of(), goals));
         assertThat(service.validate(WS, noLearner)).isEmpty();
         String derived = save(EXERCISE, "Derivata", "derived", intent(giulia(), 90, 0, List.of(), goals));
         assertThat(service.validate(WS, derived)).isEmpty();
     }
 
+    @Test
+    void goalsNeedADimensionOfTheQualityModelOfTheIntent() {
+        assertThat(service.validate(WS, PIANO)).isEmpty();
+        String other = save(QUALITY, "Altro", null, quality(
+                List.of(band("o_low", "LOW", 0, 0.5), band("o_high", "HIGH", 0.5, 1))));
+
+        // The goal uses a dimension of a quality model that is not the one of the intent.
+        String foreign = save(EXERCISE, "Altra dimensione", "intent", intent(giulia(), 60, 0, List.of(),
+                List.of(goal("g1", other, "b_rhythm", "LOW"))));
+        Diagnostic diagnostic = only(service.validate(WS, foreign), "GoalDimension");
+        assertThat(diagnostic.severity()).isEqualTo(Severity.ERROR);
+        assertThat(diagnostic.elementId()).isEqualTo("g1");
+
+        // Goals without a quality model have nothing that says what they mean.
+        ObjectNode spec = intent(giulia(), 60, 0, List.of(), List.of(goal("g1", "Density", "LOW")));
+        String orphan = save(EXERCISE, "Senza modello", "intent", new ObjectNode(spec.id(), spec.eClass(), spec.attributes(),
+                spec.contents(), references(giulia(), null)));
+        assertThat(names(service.validate(WS, orphan))).containsExactly("QualityModelForGoals");
+
+        String twice = save(EXERCISE, "Due volte", "intent", intent(giulia(), 60, 0, List.of(),
+                List.of(goal("g1", "Density", "LOW"), goal("g2", "Density", "HIGH"))));
+        assertThat(names(service.validate(WS, twice))).containsExactly("OneGoalPerDimension", "OneGoalPerDimension");
+    }
+
     // ---------------------------------------------------------------- quality.evl
+
+    @Test
+    void aQualityModelSaysWhatItsDimensionsAre() {
+        ObjectNode one = node("d1", "QualityDimension", Map.of("name", "Density", "metric", "noteDensity", "implicit", true,
+                "defaultLevel", "HIGH"), Map.of("bands", List.of(band("a", "LOW", 0, 1), band("b", "LOW", 0, 1))), null);
+        ObjectNode two = node("d2", "QualityDimension", Map.of("name", "Density", "metric", "noteDensity"),
+                Map.of("bands", List.of(band("c", "LOW", 0, 1))), null);
+        String id = save(QUALITY, "Doppio", null, node("qm", "QualityModel", Map.of(), Map.of("dimensions", List.of(one, two)), null));
+        assertThat(names(service.validate(WS, id))).containsExactlyInAnyOrder("UniqueDimensionNames", "BandCoverage",
+                "OneBandPerLevel", "DefaultLevelHasABand");
+
+        // A metric is a measure the studio can take: a name it does not know is refused, with the ones it knows.
+        ObjectNode unknown = node("d1", "QualityDimension", Map.of("name", "Swing", "label", "Swing", "metric", "swingFeel"),
+                Map.of("bands", List.of(band("a", "LOW", 0, 1))), null);
+        String strange = save(QUALITY, "Strano", null, node("qm", "QualityModel", Map.of(), Map.of("dimensions", List.of(unknown)), null));
+        Diagnostic metric = only(service.validate(WS, strange), "KnownMetric");
+        assertThat(metric.severity()).isEqualTo(Severity.ERROR);
+        assertThat(metric.message()).isEqualTo("Swing: la metrica «swingFeel» non esiste. Quelle disponibili: "
+                + "shortNoteShare, rhythmVariety, meanLeap, rangeUse, noteDensity");
+    }
+
 
     @Test
     void validQualityModelHasNoDiagnostics() {

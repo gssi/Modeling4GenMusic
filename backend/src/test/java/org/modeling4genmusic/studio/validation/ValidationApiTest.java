@@ -120,10 +120,10 @@ class ValidationApiTest {
         // a syntax error is reported with its position and nothing is saved
         String broken = original.replace("critique LeapBeyondReach {", "critique LeapBeyondReach");
         mvc.perform(post("/api/rules/intent.evl/check").contentType(MediaType.APPLICATION_JSON).content(body.apply(broken)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.problems[0].line").value(54))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.problems[0].line").value(55))
                 .andExpect(jsonPath("$.contexts", hasSize(0)));
         mvc.perform(put("/api/rules/intent.evl").contentType(MediaType.APPLICATION_JSON).content(body.apply(broken)))
-                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.message", containsString("line 54")));
+                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.message", containsString("line 55")));
 
         // right syntax, wrong property: only the trial run on a model can tell
         String wrong = original.replace("check: intervals.maxLeap(self.pattern.expression) <=", "check: self.noSuchThing <=");
@@ -131,7 +131,7 @@ class ValidationApiTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.problems", hasSize(0)))
                 .andExpect(jsonPath("$.failures[0].modelId").value("giulia-leap.intent"))
                 .andExpect(jsonPath("$.failures[0].message")
-                        .value("Property 'noSuchThing' not found in ContainsPattern (line 57)"));
+                        .value("Property 'noSuchThing' not found in ContainsPattern (line 58)"));
         mvc.perform(put("/api/rules/intent.evl").contentType(MediaType.APPLICATION_JSON).content(body.apply(wrong)))
                 .andExpect(status().isUnprocessableEntity());
         mvc.perform(get("/api/rules")).andExpect(jsonPath("$[1].modified").value(false));

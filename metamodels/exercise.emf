@@ -2,9 +2,11 @@
 package exercise;
 
 import "profile.ecore";
+import "quality.ecore";
 
 class ExerciseSpec {
   ref profile.Learner learner;
+  ref quality.QualityModel qualityModel;   // where the dimensions of the quality goals are defined
   attr profile.Instrument instrument;
   attr String key;
   attr String meter;
@@ -50,9 +52,10 @@ class Pattern {
   attr String expression;
 }
 
+// How demanding the exercise should be along one dimension of the quality model.
 class QualityGoal {
-  attr QualityAttribute attribute;
-  attr Level level;
+  ref quality.QualityDimension[1] dimension;
+  attr quality.Level level;
 }
 
 enum Strength {
@@ -60,21 +63,8 @@ enum Strength {
   SOFT = 1;
 }
 
-enum Level {
-  LOW = 0;
-  MEDIUM = 1;
-  HIGH = 2;
-}
-
 enum PatternKind {
   RHYTHM = 0;
   INTERVAL = 1;
   HARMONY = 2;
-}
-
-enum QualityAttribute {
-  RHYTHMIC_COMPLEXITY = 0;
-  MELODIC_COMPLEXITY = 1;
-  DENSITY = 2;
-  LENGTH = 3;
 }

@@ -9,7 +9,7 @@ const EXERCISE = 'http://music/exercise'
 const QUALITY = 'http://music/quality'
 const SEVERITY: Record<string, string> = { ERROR: 'Errore', WARNING: 'Avviso', INFO: 'Nota' }
 
-/** Choose the three input models, review the checks on the intent, derive the exercise spec. */
+/** Choose the intent and the learner, review the checks on the intent, derive the exercise spec. */
 export function DerivationView() {
   const models = useStudio((s) => s.models)
   const derivation = useStudio((s) => s.derivation)
@@ -39,15 +39,17 @@ export function DerivationView() {
     if (intentId) void check(intentId)
   }, [intentId, check])
 
-  // Choosing an intent proposes the learner it was written for.
+  // Choosing an intent proposes the learner it was written for and shows its quality model.
   useEffect(() => {
     if (!intentId) return
     let cancelled = false
     api
       .getModel(intentId)
       .then((doc) => {
+        if (cancelled) return
         const learner = doc.roots[0]?.references.learner?.[0]?.model
-        if (!cancelled && learner && learners.some((l) => l.id === learner)) setDerivationInput({ learnerId: learner })
+        // The quality model is not chosen here: it is the one the goals of the intent refer to.
+        setDerivationInput({ qualityId: doc.roots[0]?.references.qualityModel?.[0]?.model ?? '', ...(learner && learners.some((l) => l.id === learner) ? { learnerId: learner } : {}) })
       })
       .catch(() => undefined)
     return () => {
@@ -69,7 +71,7 @@ export function DerivationView() {
 
   const errors = diagnostics?.filter((d) => d.severity === 'ERROR') ?? []
   const pending = diagnostics?.filter((d) => d.fixes.length > 0 && !dismissed.includes(d.id)) ?? []
-  const ready = !!learnerId && !!intentId && !!qualityId && diagnostics !== null && errors.length === 0 && pending.length === 0
+  const ready = !!learnerId && !!intentId && diagnostics !== null && errors.length === 0 && pending.length === 0
 
   const select = (label: string, id: string, value: string, options: typeof models, onChange: (v: string) => void, empty: string) => (
     <div className="field">
@@ -92,7 +94,12 @@ export function DerivationView() {
         <div className="form-grid">
           {select('Intento didattico', 'derive-intent', intentId, intents, (v) => setDerivationInput({ intentId: v }), 'Nessun intento nel workspace')}
           {select('Profilo dell’allievo', 'derive-learner', learnerId, learners, (v) => setDerivationInput({ learnerId: v }), 'Nessun profilo nel workspace')}
-          {select('Modello di qualità', 'derive-quality', qualityId, qualities, (v) => setDerivationInput({ qualityId: v }), 'Nessun modello di qualità')}
+          <div className="field">
+            <span className="field-label">Modello di qualità</span>
+            <p aria-label="Modello di qualità dell’intento">
+              {!intentId ? 'Quello indicato dall’intento.' : qualityId ? (qualities.find((m) => m.id === qualityId)?.name ?? qualityId) : 'Nessuno: l’intento non ha obiettivi di qualità.'}
+            </p>
+          </div>
         </div>
       </section>
 

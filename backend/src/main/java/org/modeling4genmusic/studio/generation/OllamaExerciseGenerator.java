@@ -111,6 +111,10 @@ public class OllamaExerciseGenerator implements ExerciseGenerator {
                 }
             }
         }
+        // How demanding the exercise should be: each dimension of the quality model has its own wording.
+        for (EObject goal : children(spec, "qualityGoals")) {
+            hint(goal).ifPresent(notes::add);
+        }
         for (Check check : ctx.rejected()) {
             switch (check.name()) {
                 case "range" -> notes.add("Keep every note inside that range: no lower and no higher notes.");
@@ -127,6 +131,17 @@ public class OllamaExerciseGenerator implements ExerciseGenerator {
             text.append("\nTempo ").append(tempo);
         }
         return text.append("\nNotes ").append(String.join(" ", notes)).toString();
+    }
+
+    /** What the quality model tells the music model for the level of a goal, if it says anything. */
+    static java.util.Optional<String> hint(EObject goal) {
+        EStructuralFeature reference = goal.eClass().getEStructuralFeature("dimension");
+        if (reference == null || !(goal.eGet(reference) instanceof EObject dimension) || dimension.eIsProxy()) {
+            return java.util.Optional.empty();
+        }
+        String level = literal(goal, "level");
+        return children(dimension, "bands").stream().filter(band -> level != null && level.equals(literal(band, "level")))
+                .map(band -> text(band, "hint", "").strip()).filter(hint -> !hint.isEmpty()).findFirst();
     }
 
     /** The rhythmic pattern of a constraint, written as ABC on two neighbouring notes. */

@@ -1414,6 +1414,31 @@ button.link {
   gap: 0.5rem;
 }
 
+/* A choice that can be switched on, with the value it takes next to it. */
+.form-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-view .form-check select {
+  width: auto;
+}
+
+.form-table td.is-wide {
+  width: 55%;
+}
+
+.form-view .form-table td.is-wide input[type='text'] {
+  width: 100%;
+  max-width: none;
+}
+
+.form-goal-note {
+  flex-basis: 100%;
+}
+
 .form-warnings {
   display: grid;
   gap: 0.25rem;

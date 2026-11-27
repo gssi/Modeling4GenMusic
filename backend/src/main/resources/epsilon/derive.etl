@@ -1,5 +1,5 @@
 // Derivation of a complete exercise spec from the learner profile (L), the teaching intent (T)
-// and the quality model (Q). The needs of the learner are typed by a catalog (N, empty when the
+// and the quality model the intent refers to (Q, empty when it has none). The needs of the learner are typed by a catalog (N, empty when the
 // profile has none): what each of them does to the spec is read from its type, not written here. It writes the spec (S) and a weaving model (W): every element or
 // attribute created in S gets a Link in W with the rule that produced it and a readable rationale.
 //
@@ -13,11 +13,6 @@ operation LEARNING_MIN_OCCURRENCES() : Integer { return 3; }
 
 // Occurrences required for a pattern already mastered, or unknown to the profile.
 operation DEFAULT_MIN_OCCURRENCES() : Integer { return 1; }
-
-// Quality attributes that get a LOW goal when the teacher does not mention them.
-operation FOCUS_DIMENSIONS() : Sequence {
-  return Sequence{T!QualityAttribute#RHYTHMIC_COMPLEXITY, T!QualityAttribute#MELODIC_COMPLEXITY};
-}
 
 // ---------------------------------------------------------------- setup
 
@@ -52,6 +47,11 @@ rule CopyIntent
   refinement("CopyIntent", s, "meter", "Metro scelto dalla docente").from(W!Origin#TEACHER, t, "meter");
   s.bars = t.bars;
   refinement("CopyIntent", s, "bars", "Numero di battute scelto dalla docente").from(W!Origin#TEACHER, t, "bars");
+  if (qualityModel().isDefined()) {
+    s.qualityModel = qualityModel();
+    refinement("CopyIntent", s, "qualityModel", "Modello di qualità scelto dalla docente")
+      .from(W!Origin#TEACHER, t, "qualityModel");
+  }
   if (t.requestedBpm > 0) {
     s.requestedBpm = t.requestedBpm;
     refinement("CopyIntent", s, "requestedBpm", "Tempo richiesto dalla docente")
@@ -185,18 +185,19 @@ rule RangeFromLearner
   spec().constraints.add(d);
 }
 
-// 8. Quality goals set by the teacher are kept.
+// 8. Quality goals set by the teacher are kept. A goal says how demanding the exercise should be
+// along a dimension; which dimensions exist is written in the quality model, not here.
 rule CopyQualityGoals
   transform g : T!QualityGoal
   to q : S!QualityGoal {
 
-  guard: g.eContainer() = intent()
+  guard: g.eContainer() = intent() and g.dimension.isDefined() and not g.dimension.eIsProxy()
 
-  ids.exact(q, g.attribute.goalId());
-  q.attribute = g.attribute;
+  ids.exact(q, g.dimension.goalId());
+  q.dimension = g.dimension;
   q.level = g.level;
 
-  refinement("CopyQualityGoals", q, null, "Obiettivo " + g.attribute + " " + g.level + " fissato dalla docente")
+  refinement("CopyQualityGoals", q, null, "Obiettivo " + g.dimension.caption() + " " + g.level + " fissato dalla docente")
     .from(W!Origin#TEACHER, g, null);
   spec().qualityGoals.add(q);
 }
@@ -300,31 +301,33 @@ post ApplyNeedLimits {
   }
 }
 
-// 9. Dimensions the teacher does not mention stay simple, to keep the focus on the others.
-post FocusOtherDimensionsLow {
+// 9. A dimension that the quality model marks as implicit gets its default level when the teacher
+// does not mention it: typically LOW, to keep the focus on what was asked.
+post ApplyImplicitGoals {
   var s = spec();
-  for (attribute in FOCUS_DIMENSIONS()) {
-    if (not s.qualityGoals.exists(g | g.attribute = attribute)) {
+  for (dimension in Q!QualityDimension.all.select(d | d.implicit)) {
+    if (not s.qualityGoals.exists(g | g.dimension = dimension)) {
       var q = new S!QualityGoal;
-      ids.exact(q, attribute.goalId());
-      q.attribute = attribute;
-      q.level = S!Level#LOW;
+      ids.exact(q, dimension.goalId());
+      q.dimension = dimension;
+      q.level = dimension.defaultLevel;
       s.qualityGoals.add(q);
-      derivation("FocusOtherDimensionsLow", q, null,
-        "La docente non indica un obiettivo per " + attribute + ": resta basso per non distrarre dal resto")
-        .from(W!Origin#RULE_DEFAULT, intent(), null);
+      derivation("ApplyImplicitGoals", q, null,
+        "La docente non indica un obiettivo per " + dimension.caption() + ": vale il livello "
+        + dimension.defaultLevel + " previsto dal modello di qualità")
+        .from(W!Origin#QUALITY_MODEL, dimension, "defaultLevel");
     }
   }
 }
 
-// 10. Each quality goal is resolved to the band of the quality model that defines its thresholds.
+// 10. Each quality goal is resolved to the band of its dimension that defines the thresholds.
 post ResolveThresholds {
   for (goal in spec().qualityGoals) {
-    var band = Q!Band.all.selectOne(b | b.level = goal.level and b.eContainer().attribute = goal.attribute);
+    var band = goal.dimension.bands.selectOne(b | b.level = goal.level);
     if (band.isDefined()) {
       var link = new W!Resolution;
       link.init("ResolveThresholds", goal, null,
-        goal.attribute + " " + goal.level + " significa " + band.eContainer().metric + " tra " + band.min
+        goal.dimension.caption() + " " + goal.level + " significa " + goal.dimension.metric + " tra " + band.min
         + " e " + band.max)
         .from(W!Origin#QUALITY_MODEL, band, null);
     }
@@ -340,6 +343,18 @@ operation intent() : T!ExerciseSpec { return T!ExerciseSpec.all.first(); }
 operation spec() : S!ExerciseSpec { return intent().equivalent(); }
 
 operation weaving() : W!DerivationWeaving { return W!DerivationWeaving.all.first(); }
+
+operation qualityModel() : Any { return Q!QualityModel.all.first(); }
+
+// The label of a dimension, or its name when it has none.
+operation Q!QualityDimension caption() : String {
+  return self.label.isDefined() and self.label.trim().length() > 0 ? self.label : self.name;
+}
+
+// "RhythmicComplexity" gives the id qg_rhythmic_complexity.
+operation Q!QualityDimension goalId() : String {
+  return "qg_" + self.name.replaceAll("([a-z0-9])([A-Z])", "$1_$2").replaceAll("[^A-Za-z0-9]+", "_").toLowerCase();
+}
 
 // What the teacher asks for an attribute of the spec, as in intent.evl: the tempo is asked as
 // requestedBpm and ends up bounding maxBpm.
@@ -400,10 +415,6 @@ operation L!PatternMastery isRequestedByTeacher() : Boolean {
 operation S!Constraint copyBasics(source : T!Constraint) {
   self.strength = source.strength;
   self.weight = source.weight;
-}
-
-operation Any goalId() : String {
-  return "qg_" + self.name.toLowerCase();
 }
 
 operation refinement(ruleName : String, target : Any, feature : Any, rationale : String) : W!Link {

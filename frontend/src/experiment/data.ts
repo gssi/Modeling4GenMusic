@@ -41,7 +41,6 @@ export interface Requirements {
   case: string
   staffScale: number
   requirements: Requirement[]
-  qualityGoals: Requirement[]
 }
 
 export interface Check {

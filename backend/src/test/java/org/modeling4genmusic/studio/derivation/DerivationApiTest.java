@@ -137,10 +137,12 @@ class DerivationApiTest {
         List<ObjectNode> goals = spec.contents().get("qualityGoals");
         assertThat(goals).extracting(ObjectNode::id).containsExactly("qg_rhythmic_complexity",
                 "qg_melodic_complexity");
-        assertThat(goals.get(0).attributes()).containsEntry("attribute", "RHYTHMIC_COMPLEXITY")
-                .containsEntry("level", "MEDIUM");
-        assertThat(goals.get(1).attributes()).containsEntry("attribute", "MELODIC_COMPLEXITY")
-                .containsEntry("level", "LOW");
+        // A goal names a dimension of the quality model; the second one is implicit in that model.
+        assertThat(goals.get(0).attributes()).containsEntry("level", "MEDIUM");
+        assertThat(goals.get(0).references().get("dimension").get(0)).isEqualTo(new Ref("piano.quality", "RhythmicComplexity", null));
+        assertThat(goals.get(1).attributes()).containsEntry("level", "LOW");
+        assertThat(goals.get(1).references().get("dimension").get(0).id()).isEqualTo("MelodicComplexity");
+        assertThat(spec.references().get("qualityModel").get(0)).isEqualTo(new Ref("piano.quality", "piano_quality", null));
 
         // ---- weaving
         ObjectNode weaving = store.get(WS, "giulia.intent.weaving").roots().get(0);
@@ -175,7 +177,7 @@ class DerivationApiTest {
         assertThat(links).extracting(l -> l.attributes().get("rule")).contains("CopyIntent",
                 "InstrumentFromLearner", "TempoLimit", "StrengthenLearningPattern", "ExcludeNotIntroduced",
                 "RangeFromLearner", "ApplyNeeds", "CopyQualityGoals",
-                "FocusOtherDimensionsLow", "ResolveThresholds");
+                "ApplyImplicitGoals", "ResolveThresholds");
         // The span constraint is not written by a rule about hands: it comes from the type of the need.
         ObjectNode span = links.stream().filter(l -> l.references().get("target").get(0).id().equals("c_span_1"))
                 .findFirst().orElseThrow();
@@ -297,6 +299,53 @@ class DerivationApiTest {
         // Every element the need added, the contained pattern too, is traced.
         mvc.perform(post("/api/models/giulia.intent.weaving/validate")).andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void aDimensionAddedOnlyToTheQualityModelBecomesAGoalOfTheSpec() throws Exception {
+        // A dimension the code has never heard of: implicit at MEDIUM, measured with an existing metric.
+        ObjectNode band = new ObjectNode("w_med", "Band", Map.of("level", "MEDIUM", "min", 0.0, "max", 1.0, "hint", "Use about an octave."), null, null);
+        ObjectNode range = new ObjectNode("RangeUse", "QualityDimension",
+                Map.of("name", "RangeUse", "label", "Estensione usata", "metric", "rangeUse", "implicit", true, "defaultLevel", "MEDIUM"),
+                Map.of("bands", List.of(band)), null);
+        ModelDocument quality = store.get(WS, "piano.quality");
+        store.replace(WS, "piano.quality", quality.withRoots(List.of(plus(quality.roots().get(0), "dimensions", range))));
+        mvc.perform(post("/api/models/piano.quality/validate")).andExpect(jsonPath("$", hasSize(0)));
+
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+
+        List<ObjectNode> goals = store.get(WS, "giulia.intent.derived").roots().get(0).contents().get("qualityGoals");
+        assertThat(goals).extracting(ObjectNode::id).containsExactly("qg_rhythmic_complexity", "qg_melodic_complexity",
+                "qg_range_use");
+        assertThat(goals.get(2).attributes()).containsEntry("level", "MEDIUM");
+        List<ObjectNode> links = store.get(WS, "giulia.intent.weaving").roots().get(0).contents().get("links");
+        List<ObjectNode> about = links.stream().filter(l -> l.references().get("target").get(0).id().equals("qg_range_use")).toList();
+        assertThat(about).extracting(l -> l.attributes().get("rule")).containsExactly("ApplyImplicitGoals", "ResolveThresholds");
+        assertThat(about.get(0).attributes()).containsEntry("rationale",
+                "La docente non indica un obiettivo per Estensione usata: vale il livello MEDIUM previsto dal modello di qualità");
+        assertThat(about.get(0).contents().get("sources").get(0).attributes()).containsEntry("origin", "QUALITY_MODEL")
+                .containsEntry("feature", "defaultLevel");
+        assertThat(about.get(1).attributes()).containsEntry("rationale", "Estensione usata MEDIUM significa rangeUse tra 0.0 e 1.0");
+    }
+
+    @Test
+    void anIntentWithoutAQualityModelDerivesWithoutGoals() throws Exception {
+        ModelDocument intent = store.get(WS, "giulia.intent");
+        ObjectNode root = intent.roots().get(0);
+        Map<String, List<ObjectNode>> contents = new java.util.LinkedHashMap<>(root.contents());
+        contents.remove("qualityGoals");
+        Map<String, List<Ref>> references = new java.util.LinkedHashMap<>(root.references());
+        references.remove("qualityModel");
+        store.replace(WS, "giulia.intent", intent.withRoots(List.of(
+                new ObjectNode(root.id(), root.eClass(), root.attributes(), contents, references))));
+
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        ObjectNode spec = store.get(WS, "giulia.intent.derived").roots().get(0);
+        assertThat(spec.contents().get("qualityGoals")).isNullOrEmpty();
+        assertThat(spec.references().get("qualityModel")).isNullOrEmpty();
+        mvc.perform(post("/api/models/giulia.intent.weaving/validate")).andExpect(jsonPath("$", hasSize(0)));
     }
 
     @Test
@@ -480,7 +529,7 @@ class DerivationApiTest {
         String broken = original.replace("rule CopyIntent\n  transform t", "rule CopyIntent\n  transfrom t");
         mvc.perform(post("/api/derivations/script/check").contentType(MediaType.APPLICATION_JSON)
                 .content(body.apply(broken))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.problems[0].line").value(41)).andExpect(jsonPath("$.rules", hasSize(0)));
+                .andExpect(jsonPath("$.problems[0].line").value(36)).andExpect(jsonPath("$.rules", hasSize(0)));
         mvc.perform(put("/api/derivations/script").contentType(MediaType.APPLICATION_JSON).content(body.apply(broken)))
                 .andExpect(status().isUnprocessableEntity());
 

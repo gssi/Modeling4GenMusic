@@ -137,6 +137,8 @@ class OllamaGenerationTest {
                 .contains("All notes stay between C4 and G5.")
                 .contains("It practises the rhythm c>B, used at least 3 times.")
                 .contains("It never uses the rhythm c<B.")
+                // the quality goals, in the words the quality model gives for their level
+                .contains("Mix quarter notes with eighth notes.").contains("Move mostly by step.")
                 // the header is written for the model, which only continues with the notes
                 .endsWith(" </s> Assistant: X:1\nT:Esercizio\nL:1/8\nQ:1/4=72\nM:4/4\nK:G\n");
     }

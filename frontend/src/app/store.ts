@@ -376,15 +376,15 @@ export const useStudio = create<StudioState>((set, get) => {
 
     derive: async () => {
       const { learnerId, intentId, qualityId } = get().derivation
-      if (!learnerId || !intentId || !qualityId) return
-      const unsaved = [learnerId, intentId, qualityId].find((id) => get().open[id]?.dirty)
+      if (!learnerId || !intentId) return
+      const unsaved = [learnerId, intentId, qualityId].find((id) => id && get().open[id]?.dirty)
       if (unsaved) {
         set({ notice: { kind: 'error', text: `Salva «${get().open[unsaved].doc.name}» prima di derivare: la derivazione legge i modelli salvati.` } })
         return
       }
       set((state) => ({ derivation: { ...state.derivation, running: true, result: null } }))
       try {
-        const result = await api.derive(learnerId, intentId, qualityId)
+        const result = await api.derive(learnerId, intentId)
         // The derived models were rewritten on disk: drop the copies that may be open.
         set((state) => {
           const open = { ...state.open }

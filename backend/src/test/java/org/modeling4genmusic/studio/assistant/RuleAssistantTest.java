@@ -147,7 +147,7 @@ class RuleAssistantTest {
                 .contains("class L!Need").contains("enum T!PatternKind { RHYTHM, ")
                 // tools and operations the rule may call, and rules of the script as examples
                 .contains("intervals is a IntervalTool:").contains("intervals.maxLeap(Object) : int").contains("operation T!ExerciseSpec hasLearner() : Boolean")
-                .contains("critique ").contains("Names already taken: TempoAboveComfort")
+                .contains("# Rules of the script, as examples of style").contains("Names already taken: TempoAboveComfort")
                 .endsWith("Avvisa se le battute sono più di 4\n");
         // nothing is saved: the script is still the original
         mvc.perform(get("/api/rules")).andExpect(jsonPath("$[1].modified").value(false));

@@ -2,6 +2,38 @@
 
 Una nota per milestone. Le modifiche ai metamodelli vanno segnalate qui.
 
+## Dimensioni di qualità definite nel modello di qualità
+
+**Modifica ai metamodelli** (scelte in `docs/adr/0007-quality-dimensions-as-data.md`):
+
+- `quality`: `QualityModel` contiene `QualityDimension` (nome, etichetta, descrizione, `metric`,
+  `skillLimited` + `skillArea`, `implicit` + `defaultLevel`) con le sue `Band`, che hanno anche
+  `hint`, la frase per il generatore. `MetricBinding` non esiste più. L'enum `Level` è ora qui.
+- `exercise`: tolti gli enum `QualityAttribute` e `Level`. `QualityGoal` ha `dimension [1]` verso
+  `quality.QualityDimension`; `ExerciseSpec` ha `qualityModel`. Intenti e modelli di qualità
+  scritti con l'enum vanno riscritti.
+- `profile`, `needs`, `weaving`: nessuna modifica.
+- Diagrammi: tutti e cinque i metamodelli sono ora generati da `metamodels/render_diagrams.py`;
+  nuovi `levels-needs` e `levels-quality` (da `render_levels.py`) con i livelli classe → tipo →
+  istanza.
+
+Il resto:
+
+- Derivazione: il modello di qualità è quello indicato dall'intento (il campo `qualityModelId`
+  della richiesta non serve più). `ApplyImplicitGoals` al posto di `FocusOtherDimensionsLow`;
+  nessun nome di dimensione negli script.
+- Validazione: `quality.evl` controlla nomi unici, una banda per livello, metrica conosciuta;
+  `intent.evl` controlla che gli obiettivi usino dimensioni del modello di qualità dell'intento.
+- Metriche calcolate sull'esercizio: `shortNoteShare`, `rhythmVariety`, `meanLeap`, `rangeUse`,
+  `noteDensity`. `GET /api/generations/metrics` le elenca.
+- Generazione: la frase del livello di ogni obiettivo entra nella richiesta; ogni obiettivo è
+  misurato in un controllo `qualityGoal`, non bloccante. A parità di vincoli rispettati si tiene
+  il tentativo più vicino agli obiettivi.
+- Studio: scheda del modello di qualità per dimensioni; nell'intento si sceglie il modello di
+  qualità e gli obiettivi tra le sue dimensioni.
+- Esperimento: gli obiettivi di qualità sono tra i requisiti, come preferenze. I risultati della
+  prima esecuzione sono stati tolti e i cinque casi rigenerati con il nuovo modello.
+
 ## Cartelle nel workspace
 
 - I modelli si raccolgono in cartelle, anche annidate (`Classe 3/Giulia`). La cartella è un dato di

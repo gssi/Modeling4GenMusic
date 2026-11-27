@@ -202,7 +202,8 @@ API: `GET /api/derivations/script`, `POST /api/derivations/script/check`,
 
 1. Crea o importa un catalogo dei bisogni, un profilo, un intento didattico e un modello di
    qualità. Ogni modello si modifica come diagramma oppure, con il selettore «Scheda», come modulo.
-2. «Deriva un esercizio» fa scegliere i tre modelli, mostra i controlli sull'intento con le
+2. «Deriva un esercizio» fa scegliere intento e profilo (il modello di qualità è quello
+   dell'intento), mostra i controlli sull'intento con le
    correzioni proposte e produce la specifica dell'esercizio e la traccia di derivazione.
 3. Nella specifica derivata il blu indica ciò che ha chiesto la docente, il verde ciò che viene
    dal profilo, dai bisogni o dalle regole; selezionando un elemento si legge il perché e si
@@ -212,6 +213,28 @@ API: `GET /api/derivations/script`, `POST /api/derivations/script/check`,
 
 Per caricare l'esempio, importa dall'editor i file di `fixtures/giulia/` con «Importa XMI»,
 partendo da `default.needs.xmi`: il profilo cita il catalogo dei bisogni.
+
+## Obiettivi di qualità
+
+Quanto deve essere impegnativo un esercizio si dice per dimensioni (complessità ritmica, melodica,
+densità…). Le dimensioni non sono fisse: stanno nel modello di qualità
+(`fixtures/giulia/piano.quality.xmi`). Ognuna dichiara la metrica con cui si misura e, per ogni
+livello, l'intervallo della metrica e la frase da dire al modello musicale. Nell'intento si sceglie
+il modello di qualità e si fissa un livello per le dimensioni che interessano; per le altre vale
+ciò che il modello prevede.
+
+Per aggiungere una dimensione apri il modello di qualità con «Scheda», premi «Aggiungi dimensione
+di qualità», scegli la metrica e scrivi le tre bande. Le metriche disponibili sono quelle che lo
+studio sa calcolare (`GET /api/generations/metrics`): quota di note brevi, varietà delle durate,
+ampiezza media dei salti, estensione usata, note per pulsazione. Una metrica nuova richiede
+codice (`Metrics.java`).
+
+Sull'esercizio generato ogni obiettivo è misurato e riportato tra i controlli come osservazione:
+non rende l'esercizio non valido. Metriche e soglie sono una prima proposta, da calibrare. Le
+scelte sono in [docs/adr/0007-quality-dimensions-as-data.md](docs/adr/0007-quality-dimensions-as-data.md).
+
+I diagrammi `metamodels/img/levels-needs` e `levels-quality` mostrano, per bisogni e qualità, i
+tre livelli: classi del metamodello, tipi definiti nei modelli, istanze che li usano.
 
 ## Bisogni dell'allievo
 

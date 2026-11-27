@@ -228,7 +228,7 @@ function Checks({ checks }: { checks: Result['report']['checks'] }) {
 }
 
 function ResearcherView({ requirements, result }: { requirements: CaseData; result: Result | null }) {
-  const all = [...requirements.requirements.requirements, ...requirements.requirements.qualityGoals]
+  const all = requirements.requirements.requirements
   return (
     <div className="researcher">
       <h2>Researcher view</h2>
@@ -316,9 +316,8 @@ function ResearcherView({ requirements, result }: { requirements: CaseData; resu
                   <th scope="row">{r.id}</th>
                   <td>
                     <code>{r.kind}</code>
-                    {r.kind === 'qualityGoal' && <div>{r.text}</div>}
                   </td>
-                  <td>{r.appliedBy === 'display' ? 'no: applied by the page' : r.enforced ? (r.strength === 'preferred' ? 'yes, as a preference' : 'yes') : 'no: not enforced yet'}</td>
+                  <td>{r.appliedBy === 'display' ? 'no: applied by the page' : r.enforced ? (r.strength === 'preferred' ? 'yes, as a preference' : 'yes') : 'no: not enforced'}</td>
                   <td>{r.origin.rules?.join(' → ')}</td>
                   <td lang="it">
                     {r.origin.rationale}

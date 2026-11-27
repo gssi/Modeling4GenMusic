@@ -67,7 +67,6 @@ const rhythm = (expression) =>
 
 const words = (camel) => camel.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase()).replace(/ ./g, (c) => c.toLowerCase())
 const times = (n) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n} times`)
-const QUALITY = { RHYTHMIC_COMPLEXITY: 'Rhythmic complexity', MELODIC_COMPLEXITY: 'Melodic complexity', DENSITY: 'Density', LENGTH: 'Length' }
 
 // ---------------------------------------------------------------- requirements from the derived spec
 
@@ -99,10 +98,11 @@ function originOf(weaving, catalog, targetId, feature) {
   }
   if (origins.has('TEACHER')) return { source: 'teacher', label: 'The teacher', ...trace }
   if (origins.has('PROFILE')) return { source: 'profile', label: 'The learner profile', ...trace }
+  if (origins.has('QUALITY_MODEL')) return { source: 'qualityModel', label: 'A default of the quality model', ...trace }
   return { source: 'default', label: 'A default of the derivation rules', ...trace }
 }
 
-function requirementsOf(caseId, spec, weaving, catalog) {
+function requirementsOf(caseId, spec, weaving, catalog, quality) {
   const root = spec.roots[0]
   const a = root.attributes
   const list = []
@@ -151,21 +151,30 @@ function requirementsOf(caseId, spec, weaving, catalog) {
     }
   }
 
-  // Quality goals are in the spec but neither the generator nor the checks use them yet.
-  const goals = (root.contents.qualityGoals ?? []).map((g, i) => ({
-    id: `${caseId}-Q${i + 1}`,
-    kind: 'qualityGoal',
-    text: `${QUALITY[g.attributes.attribute ?? 'RHYTHMIC_COMPLEXITY']}: ${(g.attributes.level ?? 'LOW').toLowerCase()}.`,
-    enforced: false,
-    strength: 'not enforced',
-    origin: originOf(weaving, catalog, g.id, null),
-  }))
-  return { requirements: list, qualityGoals: goals }
+  // A quality goal says how demanding the exercise should be along a dimension of the quality model.
+  // It is told to the music model in the words of that model and measured on the exercise, but it
+  // never makes an exercise invalid: a preference.
+  for (const g of root.contents.qualityGoals ?? []) {
+    const ref = g.references.dimension?.[0]
+    const dimension = (quality?.roots[0]?.contents.dimensions ?? []).find((d) => d.id === ref?.id)
+    if (!dimension) continue
+    const level = g.attributes.level ?? 'LOW'
+    const band = (dimension.contents.bands ?? []).find((b) => (b.attributes.level ?? 'LOW') === level)
+    const hint = band?.attributes.hint
+    add(g.id, null, 'qualityGoal', `${words(dimension.attributes.name)} is ${level.toLowerCase()}${hint ? `: “${hint.replace(/\.$/, '')}”` : ''}.`, {
+      strength: 'preferred',
+      dimension: dimension.attributes.name,
+      level,
+      metric: dimension.attributes.metric,
+      ...(band ? { min: band.attributes.min ?? 0, max: band.attributes.max } : {}),
+    })
+  }
+  return { requirements: list }
 }
 
 // ---------------------------------------------------------------- the run
 
-async function run(folder, catalog) {
+async function run(folder, catalog, quality) {
   const dir = join(CASES, folder)
   const info = JSON.parse(readFileSync(join(dir, 'case.json'), 'utf8'))
   if (existsSync(join(dir, 'result.json')) && !force) {
@@ -178,7 +187,7 @@ async function run(folder, catalog) {
   await importXmi(join(dir, `${folder}.intent.xmi`), `${folder}.intent.xmi`, 'intent', place)
   const warnings = await (await call(`/models/${folder}.intent/validate`, { method: 'POST' })).json()
 
-  const derivation = await (await call('/derivations', json('POST', { learnerModelId: `${folder}.profile`, teacherIntentModelId: `${folder}.intent`, qualityModelId: 'piano.quality' }))).json()
+  const derivation = await (await call('/derivations', json('POST', { learnerModelId: `${folder}.profile`, teacherIntentModelId: `${folder}.intent` }))).json()
   const derivedId = `${folder}.intent.derived`
   const weavingId = `${folder}.intent.weaving`
   const spec = await model(derivedId)
@@ -191,7 +200,7 @@ async function run(folder, catalog) {
   writeFileSync(join(dir, `${weavingId}.xmi`), await xmi(weavingId))
   writeFileSync(join(dir, 'exercise.abc'), generation.abc.endsWith('\n') ? generation.abc : `${generation.abc}\n`)
   const staffScale = Math.max(1, ...(spec.roots[0].contents.constraints ?? []).filter((c) => c.eClass === 'RenderConstraint').map((c) => c.attributes.staffScale ?? 1))
-  const requirements = { case: info.id, staffScale, ...requirementsOf(info.id, spec, weaving, catalog) }
+  const requirements = { case: info.id, staffScale, ...requirementsOf(info.id, spec, weaving, catalog, quality) }
   writeFileSync(join(dir, 'requirements.json'), `${JSON.stringify(requirements, null, 2)}\n`)
   const chosen = generation.attempts.findIndex((attempt) => attempt.abc === generation.abc) + 1
   const result = {
@@ -221,8 +230,9 @@ for (const file of SHARED) {
   await importXmi(join(FIXTURES, file), file, undefined, 'Condivisi')
 }
 const catalog = await model('default.needs')
+const quality = await model('piano.quality')
 
-for (const folder of folders.filter((f) => !wanted.length || wanted.includes(f))) await run(folder, catalog)
+for (const folder of folders.filter((f) => !wanted.length || wanted.includes(f))) await run(folder, catalog, quality)
 
 const index = folders.map((folder) => {
   const info = JSON.parse(readFileSync(join(CASES, folder, 'case.json'), 'utf8'))

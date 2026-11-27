@@ -86,9 +86,9 @@ test('profile from the learner form, derivation, provenance colours and generate
                 contents: { pattern: [{ id: 'p1', eClass: 'Pattern', attributes: { kind: 'RHYTHM', expression: '8. 16' } }] },
               },
             ],
-            qualityGoals: [{ id: 'g1', eClass: 'QualityGoal', attributes: { attribute: 'RHYTHMIC_COMPLEXITY', level: 'MEDIUM' } }],
+            qualityGoals: [{ id: 'g1', eClass: 'QualityGoal', attributes: { level: 'MEDIUM' }, references: { dimension: [{ model: 'piano.quality', id: 'RhythmicComplexity' }] } }],
           },
-          references: { learner: [{ model: 'profilo-e2e', id: 'learner1' }] },
+          references: { learner: [{ model: 'profilo-e2e', id: 'learner1' }], qualityModel: [{ model: 'piano.quality', id: 'piano_quality' }] },
         },
       ],
     },
@@ -100,7 +100,8 @@ test('profile from the learner form, derivation, provenance colours and generate
   await page.getByRole('button', { name: 'Deriva un esercizio' }).click()
   await page.getByLabel('Intento didattico', { exact: true }).selectOption({ label: 'Intento e2e' })
   await expect(page.getByLabel('Profilo dell’allievo', { exact: true })).toHaveValue('profilo-e2e')
-  await page.getByLabel('Modello di qualità', { exact: true }).selectOption({ label: 'piano.quality' })
+  // the quality model is not chosen here: it is the one the goals of the intent refer to
+  await expect(page.getByLabel('Modello di qualità dell’intento')).toHaveText('piano.quality')
 
   await expect(page.getByText(/Il tempo richiesto \(90 bpm\) supera il tempo comodo/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Deriva', exact: true })).toBeDisabled()
@@ -185,9 +186,12 @@ test('profile from the learner form, derivation, provenance colours and generate
   await expect(page.getByRole('group', { name: 'Ascolto dell’esercizio' }).getByRole('button', { name: 'Ascolta' })).toBeEnabled()
   await expect(page.getByLabel('Velocità')).toHaveValue('100')
   await expect(page.locator('.check-list')).toContainText('Non ci sono note simultanee')
+  // each quality goal is measured with the metric of its dimension, as a remark
+  await expect(page.locator('.check-list')).toContainText('Complessità ritmica MEDIUM: shortNoteShare vale')
+  await expect(page.locator('.check-list')).toContainText('Complessità melodica LOW: meanLeap vale')
   await expect(page.locator('.check-list')).toContainText('Nessun cambio di posizione della mano destra')
   // the sample tune has short bars: a remark, not a failure
-  await expect(page.locator('.check-list li.is-note')).toContainText('Le battute 2, 4, 6, 7 non durano 4/4')
+  await expect(page.locator('.check-list li.is-note').first()).toContainText('Le battute 2, 4, 6, 7 non durano 4/4')
   await expect(page.getByRole('img', { name: 'Partitura dell’esercizio generato' }).locator('svg')).toBeVisible()
   await page.screenshot({ path: 'test-results/generated-exercise.png' })
 
@@ -230,7 +234,14 @@ test('profile from the learner form, derivation, provenance colours and generate
   await page.getByRole('button', { name: /^piano\.quality/ }).click()
   await page.getByRole('button', { name: 'Scheda', exact: true }).click()
   await expect(page.locator('.form-warnings')).toHaveCount(0)
-  await page.getByLabel('RHYTHMIC_COMPLEXITY, Medio: da').fill('0.2')
+  // the dimensions are data of the model: what they are called, how they are measured, what a level means
+  await expect(page.getByLabel('Metrica di Complessità ritmica')).toHaveValue('shortNoteShare')
+  await expect(page.getByText('Quota di note più brevi di una semiminima')).toBeVisible()
+  await expect(page.getByLabel('Complessità ritmica, Medio: frase per il generatore')).toHaveValue('Mix quarter notes with eighth notes.')
+  await page.getByLabel('Complessità ritmica, Medio: da').fill('0.2')
   await expect(page.locator('.form-warnings')).toContainText('si sovrappongono')
+  await page.getByRole('button', { name: 'Aggiungi dimensione di qualità' }).click()
+  await expect(page.getByRole('heading', { name: 'Dimension1' })).toBeVisible()
+  await expect(page.getByLabel('Metrica di Dimension1')).toHaveValue('shortNoteShare')
   await page.screenshot({ path: 'test-results/quality-table.png' })
 })

@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ex:ExerciseSpec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ex="http://music/exercise" xmlns:pr="http://music/profile" xmi:id="intent" key="G" meter="4/4" bars="8" requestedBpm="90">
+<ex:ExerciseSpec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ex="http://music/exercise" xmlns:pr="http://music/profile" xmlns:qm="http://music/quality" xmi:id="intent" key="G" meter="4/4" bars="8" requestedBpm="90">
   <learner href="c2.profile.xmi#giulia"/>
+  <qualityModel href="piano.quality.xmi#piano_quality"/>
   <constraints xsi:type="ex:ContainsPattern" xmi:id="c_contains_dotted">
     <pattern xmi:id="p_dotted" expression="8. 16"/>
   </constraints>
-  <qualityGoals xmi:id="qg_rhythm" level="MEDIUM"/>
+  <qualityGoals xmi:id="qg_rhythm" level="MEDIUM">
+    <dimension href="piano.quality.xmi#RhythmicComplexity"/>
+  </qualityGoals>
 </ex:ExerciseSpec>
