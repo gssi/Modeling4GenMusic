@@ -1,0 +1,73 @@
+@namespace(uri="http://music/needs", prefix="nd")
+package needs;
+
+// Type level of the learner's needs. A catalog is a model: a new kind of need is added to it,
+// not to the profile metamodel. A profile points to the types it uses and gives a value to
+// their parameters; the derivation follows the effects of each type to build the exercise spec.
+class NeedCatalog {
+  attr String name;
+  val NeedType[*] types;
+}
+
+// A functional limit, not a diagnosis: what it is called, what must be known about the learner
+// and how it changes the exercise.
+class NeedType {
+  attr String[1] name;
+  attr String label;
+  attr String description;
+  val ParameterDef[*] parameters;
+  val Effect[*] effects;
+}
+
+class ParameterDef {
+  attr String[1] name;
+  attr String label;
+  attr ParameterKind kind;
+  attr boolean required = "true";
+  attr Double min;                 // lowest value accepted, when set (numeric kinds only)
+  attr Double max;                 // highest value accepted, when set (numeric kinds only)
+  attr String defaultValue;
+}
+
+// A value taken from a parameter of the need or, without a parameter, written as it is.
+abstract class Value {
+  ref ParameterDef parameter;
+  attr String literal;
+}
+
+abstract class Effect {
+  attr String rationale;           // shown in the trace; {name} stands for the value of a parameter
+}
+
+// Adds to the spec a constraint of the named class of the exercise metamodel. It is always hard:
+// a limit is stable, it is not a preference.
+class ConstraintEffect extends Effect {
+  attr String[1] constraintClass;
+  val Binding[*] bindings;
+}
+
+// One feature of the new constraint; "pattern.expression" reaches a contained element.
+class Binding extends Value {
+  attr String[1] feature;
+}
+
+// Bounds an attribute of the spec itself, such as the tempo or the number of bars.
+class SpecEffect extends Effect, Value {
+  attr String[1] feature;
+  attr Combine combine;
+}
+
+enum ParameterKind {
+  INTEGER = 0;
+  DECIMAL = 1;
+  HAND = 2;        // LEFT or RIGHT
+  INTERVAL = 3;    // semitones
+  NOTE = 4;        // MIDI number
+  RHYTHM = 5;      // rhythm pattern expression
+}
+
+enum Combine {
+  MIN = 0;         // the value is a ceiling: the spec keeps the lower of the two
+  MAX = 1;         // the value is a floor: the spec keeps the higher of the two
+  SET = 2;         // the value replaces the one of the spec
+}

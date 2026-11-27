@@ -44,7 +44,7 @@ class ModelApiTest {
     @Test
     void listsAndDescribesMetamodels() throws Exception {
         mvc.perform(get("/api/metamodels")).andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].prefix", containsInAnyOrder("pr", "ex", "qm", "wv")));
+                .andExpect(jsonPath("$[*].prefix", containsInAnyOrder("pr", "ex", "qm", "wv", "nd")));
         mvc.perform(get("/api/metamodels/ex")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.nsURI").value("http://music/exercise"))
                 .andExpect(jsonPath("$.classes[?(@.name=='Constraint')].abstract").value(true))
@@ -141,7 +141,7 @@ class ModelApiTest {
 
     @Test
     void importsGiuliaFixtures() throws Exception {
-        for (String file : new String[] { "giulia.intent.xmi", "giulia.profile.xmi", "piano.quality.xmi" }) {
+        for (String file : new String[] { "default.needs.xmi", "giulia.intent.xmi", "giulia.profile.xmi", "piano.quality.xmi" }) {
             byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", file));
             mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", file, "text/xml", bytes))
                     .param("role", file.contains("intent") ? "intent" : ""))
@@ -151,7 +151,10 @@ class ModelApiTest {
                 .andExpect(jsonPath("$.metamodel").value("http://music/profile"))
                 .andExpect(jsonPath("$.roots[0].attributes.comfortableBpm").value(72))
                 .andExpect(jsonPath("$.roots[0].contents.patterns", hasSize(4)))
-                .andExpect(jsonPath("$.roots[0].contents.needs[0].eClass").value("LowVision"));
+                .andExpect(jsonPath("$.roots[0].contents.needs[0].eClass").value("Need"))
+                .andExpect(jsonPath("$.roots[0].contents.needs[0].references.type[0].model").value("default.needs"))
+                .andExpect(jsonPath("$.roots[0].contents.needs[0].references.type[0].id").value("LowVision"))
+                .andExpect(jsonPath("$.roots[0].contents.needs[0].contents.slots[0].attributes.value").value("1.5"));
         mvc.perform(get("/api/models/giulia.intent")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("intent"))
                 .andExpect(jsonPath("$.roots[0].references.learner[0].model").value("giulia.profile"))

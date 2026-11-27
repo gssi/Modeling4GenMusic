@@ -48,6 +48,11 @@ export function useModelForm(modelId: string) {
         }
         return next
       }),
+    /** An id no element of the model has yet, for an object built by the form itself. */
+    newId: (className: string) => uniqueId(model.doc.roots, className),
+    /** Adds a ready-made object, with its children and references, to a container. */
+    insert: (parent: { id: string; feature: string }, object: ModelObject) =>
+      mutate(modelId, (roots) => addChild(roots, parent.id, parent.feature, object)),
     remove: (id: string) => mutate(modelId, (roots) => removeObjects(roots, [id])),
   }
 }

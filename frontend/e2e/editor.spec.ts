@@ -92,7 +92,7 @@ test('validation rules can be read and searched', async ({ page }) => {
   await expect(tempo).toContainText('Avviso')
   await expect(tempo).toContainText('self.requestedBpm <= self.learner.comfortableBpm')
   await expect(tempo).toContainText('Correzione rapida')
-  await expect(page.getByRole('article', { name: 'HandSpanBounds' })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'SlotValue' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Regole di weaving.evl' })).toBeVisible()
 
   await page.getByLabel('Cerca tra le regole').fill('LeapBeyond')
@@ -144,7 +144,7 @@ test('the derivation script is shown with its rules and edited under the same ch
   await page.getByRole('button', { name: 'Regole', exact: true }).click()
   const section = page.getByRole('region', { name: 'Regole di derive.etl' })
   await expect(section.getByRole('article', { name: 'CopyIntent' })).toContainText('T!ExerciseSpec')
-  await expect(section.getByRole('article', { name: 'SpanFromHandLimit' })).toBeVisible()
+  await expect(section.getByRole('article', { name: 'ApplyNeeds' })).toBeVisible()
   await expect(section.getByRole('article', { name: 'TempoLimit' })).toContainText('dopo le regole')
 
   await page.getByRole('button', { name: 'Modifica derive.etl' }).click()
@@ -224,7 +224,7 @@ test('a described rule is proposed with what it would report, then inserted to b
   await expect(text).not.toHaveValue(/SlowLearner/)
   await assistant.getByRole('button', { name: 'Inserisci nel testo' }).click()
   await expect(text).toHaveValue(/\/\/ Avvisa se il tempo comodo è sotto i 40 bpm\ncontext L!Learner \{\n\n {2}critique SlowLearner/)
-  await expect(page.getByText(/Sintassi corretta e prova sui modelli del workspace riuscita: 6 regole/)).toBeVisible()
+  await expect(page.getByText(/Sintassi corretta e prova sui modelli del workspace riuscita: 10 regole/)).toBeVisible()
   await page.getByRole('button', { name: 'Salva le regole' }).click()
   await expect(page.getByRole('article', { name: 'SlowLearner' })).toContainText('Avviso')
 

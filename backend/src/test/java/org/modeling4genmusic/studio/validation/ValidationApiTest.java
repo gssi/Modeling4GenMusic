@@ -47,7 +47,7 @@ class ValidationApiTest {
 
     @Test
     void giuliaIntentWarnsAboutTempoAndTheFixResolvesIt() throws Exception {
-        for (String file : new String[] { "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
+        for (String file : new String[] { "default.needs.xmi", "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
             byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", file));
             mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", file, "text/xml", bytes))
                     .param("role", file.contains("intent") ? "intent" : "")).andExpect(status().isCreated());
@@ -90,12 +90,12 @@ class ValidationApiTest {
     @Test
     void listsTheValidationRulesForReading() throws Exception {
         mvc.perform(get("/api/rules")).andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].script", contains("profile.evl", "intent.evl", "quality.evl", "weaving.evl")))
+                .andExpect(jsonPath("$[*].script", contains("profile.evl", "intent.evl", "quality.evl", "weaving.evl", "needs.evl")))
                 .andExpect(jsonPath("$[*].problems.length()", everyItem(is(0))))
                 .andExpect(jsonPath("$[0].metamodel").value("http://music/profile"))
                 .andExpect(jsonPath("$[0].contexts[*].rules[*].name",
-                        hasItems("NameRequired", "RangeOrdered", "SkillLevelBounds", "PatternSyntax", "HandSpanBounds")))
-                .andExpect(jsonPath("$[0].tools", contains("intervals", "rhythm")))
+                        hasItems("NameRequired", "RangeOrdered", "SkillLevelBounds", "PatternSyntax", "SlotValue")))
+                .andExpect(jsonPath("$[0].tools", contains("intervals", "needs", "rhythm")))
                 .andExpect(jsonPath("$[1].related[0].alias").value("L"))
                 .andExpect(jsonPath("$[1].source", containsString("critique LeapBeyondReach")))
                 .andExpect(jsonPath("$[3].contexts[*].rules[*].severity", hasItems("WARNING", "ERROR")));
@@ -103,7 +103,7 @@ class ValidationApiTest {
 
     @Test
     void editsAScriptOnlyWhenItParsesAndRunsAndGoesBackToTheOriginal() throws Exception {
-        for (String file : new String[] { "giulia.profile.xmi", "giulia-leap.intent.xmi" }) {
+        for (String file : new String[] { "default.needs.xmi", "giulia.profile.xmi", "giulia-leap.intent.xmi" }) {
             byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", file));
             mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", file, "text/xml", bytes))
                     .param("name", "rules-" + file).param("role", file.contains("intent") ? "intent" : ""));
@@ -120,10 +120,10 @@ class ValidationApiTest {
         // a syntax error is reported with its position and nothing is saved
         String broken = original.replace("critique LeapBeyondReach {", "critique LeapBeyondReach");
         mvc.perform(post("/api/rules/intent.evl/check").contentType(MediaType.APPLICATION_JSON).content(body.apply(broken)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.problems[0].line").value(44))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.problems[0].line").value(54))
                 .andExpect(jsonPath("$.contexts", hasSize(0)));
         mvc.perform(put("/api/rules/intent.evl").contentType(MediaType.APPLICATION_JSON).content(body.apply(broken)))
-                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.message", containsString("line 44")));
+                .andExpect(status().isUnprocessableEntity()).andExpect(jsonPath("$.message", containsString("line 54")));
 
         // right syntax, wrong property: only the trial run on a model can tell
         String wrong = original.replace("check: intervals.maxLeap(self.pattern.expression) <=", "check: self.noSuchThing <=");
@@ -131,7 +131,7 @@ class ValidationApiTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.problems", hasSize(0)))
                 .andExpect(jsonPath("$.failures[0].modelId").value("giulia-leap.intent"))
                 .andExpect(jsonPath("$.failures[0].message")
-                        .value("Property 'noSuchThing' not found in ContainsPattern (line 47)"));
+                        .value("Property 'noSuchThing' not found in ContainsPattern (line 57)"));
         mvc.perform(put("/api/rules/intent.evl").contentType(MediaType.APPLICATION_JSON).content(body.apply(wrong)))
                 .andExpect(status().isUnprocessableEntity());
         mvc.perform(get("/api/rules")).andExpect(jsonPath("$[1].modified").value(false));

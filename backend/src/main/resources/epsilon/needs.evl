@@ -1,0 +1,100 @@
+// Validation of a catalog of need types. Model N conforms to http://music/needs.
+// An effect names a class and features of the exercise metamodel: here those names are checked,
+// so that a type that cannot be applied is found in the catalog and not while deriving.
+
+operation TARGET() : String { return "http://music/exercise"; }
+
+context N!NeedCatalog {
+
+  constraint UniqueTypeNames {
+    check: self.types.collect(t | t.name).asSet().size() = self.types.size()
+    message: "Due tipi di bisogno hanno lo stesso nome"
+  }
+}
+
+context N!NeedType {
+
+  constraint UniqueParameterNames {
+    check: self.parameters.collect(p | p.name).asSet().size() = self.parameters.size()
+    message: self.name + ": due parametri hanno lo stesso nome"
+  }
+
+  critique TypeWithoutEffects {
+    check: self.effects.notEmpty()
+    message: self.name + " non ha effetti: un bisogno di questo tipo non cambia l'esercizio"
+  }
+}
+
+context N!ParameterDef {
+
+  constraint BoundsOrdered {
+    guard: self.min.isDefined() and self.max.isDefined()
+    check: self.min <= self.max
+    message: self.owner() + ", " + self.name + ": il minimo (" + self.min + ") supera il massimo (" + self.max + ")"
+  }
+
+  constraint DefaultIsAValue {
+    guard: self.defaultValue.isDefined() and self.defaultValue.trim().length() > 0
+    check: needs.problemOf(self, self.defaultValue).isUndefined()
+    message: self.owner() + ", " + self.name + ": il valore predefinito non va bene, "
+      + needs.problemOf(self, self.defaultValue)
+  }
+}
+
+context N!ConstraintEffect {
+
+  constraint KnownConstraintClass {
+    check: needs.classProblem(self, TARGET(), self.constraintClass, "Constraint").isUndefined()
+    message: self.owner() + ": " + needs.classProblem(self, TARGET(), self.constraintClass, "Constraint")
+  }
+}
+
+context N!Binding {
+
+  constraint ParameterOfTheType {
+    guard: self.parameter.isDefined()
+    check: self.eContainer().eContainer().parameters.includes(self.parameter)
+    message: self.owner() + ": il parametro «" + self.parameter.name + "» è di un altro tipo di bisogno"
+  }
+
+  constraint BindableFeature {
+    guard: needs.classProblem(self, TARGET(), self.eContainer().constraintClass, "Constraint").isUndefined()
+    check: self.problem().isUndefined()
+    message: self.owner() + ": " + self.problem()
+  }
+}
+
+context N!SpecEffect {
+
+  constraint ParameterOfTheType {
+    guard: self.parameter.isDefined()
+    check: self.eContainer().parameters.includes(self.parameter)
+    message: self.owner() + ": il parametro «" + self.parameter.name + "» è di un altro tipo di bisogno"
+  }
+
+  constraint BindableFeature {
+    check: self.problem().isUndefined()
+    message: self.owner() + ": " + self.problem()
+  }
+
+  constraint BoundOnANumber {
+    guard: self.problem().isUndefined() and self.combine <> N!Combine#SET
+    check: needs.isNumeric(self, TARGET(), "ExerciseSpec", self.feature)
+    message: self.owner() + ": «" + self.feature + "» non è un numero, non può avere un tetto o una soglia"
+  }
+}
+
+operation N!Binding problem() : Any {
+  return needs.bindingProblem(self, TARGET(), self.eContainer().constraintClass, self.feature, self);
+}
+
+operation N!SpecEffect problem() : Any {
+  return needs.bindingProblem(self, TARGET(), "ExerciseSpec", self.feature, self);
+}
+
+// Name of the need type an element of the catalog belongs to.
+operation Any owner() : String {
+  var element = self;
+  while (element.isDefined() and not element.isTypeOf(N!NeedType)) { element = element.eContainer(); }
+  return element.isDefined() ? element.name : "?";
+}

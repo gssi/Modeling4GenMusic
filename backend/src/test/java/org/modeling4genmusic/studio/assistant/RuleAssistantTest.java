@@ -99,7 +99,7 @@ class RuleAssistantTest {
 
     @BeforeAll
     static void importGiulia(@Autowired MockMvc mvc) throws Exception {
-        for (String file : new String[] { "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
+        for (String file : new String[] { "default.needs.xmi", "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
             byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", file));
             mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", file, "text/xml", bytes))
                     .param("role", file.contains("intent") ? "intent" : "")).andExpect(status().isCreated());
@@ -144,7 +144,7 @@ class RuleAssistantTest {
         assertThat(message(0, 1)).contains("Script: intent.evl")
                 // classes under the names of the models in the script, with the model the intent refers to
                 .contains("class T!ExerciseSpec").contains("bars : EInt").contains("learner : L!Learner")
-                .contains("class L!HandSpanLimit extends Need").contains("enum T!PatternKind { RHYTHM, ")
+                .contains("class L!Need").contains("enum T!PatternKind { RHYTHM, ")
                 // tools and operations the rule may call, and rules of the script as examples
                 .contains("intervals is a IntervalTool:").contains("intervals.maxLeap(Object) : int").contains("operation T!ExerciseSpec hasLearner() : Boolean")
                 .contains("critique ").contains("Names already taken: TempoAboveComfort")

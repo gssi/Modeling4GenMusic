@@ -16,6 +16,16 @@ context T!ExerciseSpec {
       }
     }
   }
+
+  // A need of the learner can bound an attribute of the spec, such as the bars or the tempo. The
+  // derivation applies the bound whatever is asked here: the teacher is told before deriving.
+  critique NeedLimitExceeded {
+    guard: self.hasLearner()
+    check: self.exceededLimits().isEmpty()
+    message: self.exceededLimits().collect(l | l.get("rationale") + " (richiesto: "
+      + self.requested(l.get("feature")) + ")").concat("; ")
+      + ": la derivazione applicherà il limite di " + self.learner.name
+  }
 }
 
 context T!ContainsPattern {
@@ -44,12 +54,12 @@ context T!ContainsPattern {
     guard: self.pattern.isDefined() and self.pattern.kind = T!PatternKind#INTERVAL
       and intervals.isValid(self.pattern.expression)
       and self.eContainer().hasLearner() and self.eContainer().learner.reach().isDefined()
-    check: intervals.maxLeap(self.pattern.expression) <= self.eContainer().learner.reach().maxStretchSemitones
+    check: intervals.maxLeap(self.pattern.expression) <= self.eContainer().learner.reach()
     message: "Il pattern '" + self.pattern.expression + "' contiene un salto di "
       + intervals.maxLeap(self.pattern.expression) + " semitoni ("
       + intervals.nameOf(intervals.maxLeap(self.pattern.expression)) + "), oltre l'apertura della mano destra di "
-      + self.eContainer().learner.name + " (" + self.eContainer().learner.reach().maxStretchSemitones
-      + " semitoni, " + intervals.nameOf(self.eContainer().learner.reach().maxStretchSemitones)
+      + self.eContainer().learner.name + " (" + self.eContainer().learner.reach()
+      + " semitoni, " + intervals.nameOf(self.eContainer().learner.reach())
       + "): richiede un cambio di posizione della mano e potrebbe essere troppo impegnativo"
   }
 }
@@ -67,6 +77,19 @@ context T!QualityGoal {
 
 operation MAX_LEVEL_FOR_HIGH_WARNING() : Integer {
   return 2;
+}
+
+// What the teacher asks for an attribute of the spec, as text; undefined when nothing is asked.
+// The tempo is asked as requestedBpm and ends up bounding maxBpm.
+operation T!ExerciseSpec requested(feature : String) : Any {
+  if (feature = "maxBpm") { return self.requestedBpm > 0 ? self.requestedBpm.asString() : null; }
+  return needs.read(self, feature);
+}
+
+// The bounds set by the learner's needs that what is asked here goes beyond.
+operation T!ExerciseSpec exceededLimits() : Sequence {
+  return needs.limits(self.learner).select(l |
+    needs.exceeds(self.requested(l.get("feature")), l.get("value"), l.get("combine"))).asSequence();
 }
 
 operation T!ExerciseSpec hasLearner() : Boolean {
@@ -88,7 +111,12 @@ operation normalize(expression : Any) : String {
   return rhythm.normalize(expression);
 }
 
-// The limit of the hand that plays the exercise: the right one, exercises being for the right hand only.
+// How far the hand that plays the exercise reaches without moving, in semitones: the right one,
+// exercises being for the right hand only. Whatever type of need sets that limit, it is read from
+// the span constraints the learner's needs lead to; undefined when there is none.
 operation L!Learner reach() : Any {
-  return self.needs.select(n | n.isTypeOf(L!HandSpanLimit) and n.hand = L!Hand#RIGHT).first();
+  var limits = needs.constraints(self, "SpanConstraint")
+    .select(c | c.get("hand") = "RIGHT" and c.get("maxStretchInPosition").isDefined())
+    .collect(c | c.get("maxStretchInPosition").asInteger());
+  return limits.isEmpty() ? null : limits.min();
 }

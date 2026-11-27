@@ -10,8 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.emf.common.util.URI;
+import org.eclipse.emf.ecore.EObject;
+import org.eclipse.emf.ecore.EStructuralFeature;
+import org.eclipse.emf.ecore.resource.Resource;
 import org.eclipse.emf.ecore.resource.ResourceSet;
 import org.eclipse.emf.ecore.xmi.XMLResource;
+import org.eclipse.emf.ecore.xmi.impl.XMIResourceImpl;
 import org.eclipse.epsilon.common.parse.problem.ParseProblem;
 import org.eclipse.epsilon.eol.dom.Parameter;
 import org.eclipse.epsilon.eol.exceptions.EolRuntimeException;
@@ -71,6 +76,9 @@ public class DerivationService {
     public synchronized Result derive(String workspaceId, Map<String, String> parameters) {
         Map<DerivationProfile.Input, String> inputIds = new LinkedHashMap<>();
         for (DerivationProfile.Input input : profile.inputs()) {
+            if (input.reached()) {
+                continue;
+            }
             String id = parameters == null ? null : parameters.get(input.parameter());
             if (id == null || id.isBlank()) {
                 throw ApiException.badRequest("Manca il campo " + input.parameter());
@@ -82,6 +90,7 @@ public class DerivationService {
             }
             inputIds.put(input, id);
         }
+        addReached(workspaceId, inputIds);
 
         List<Diagnostic> residual = new ArrayList<>();
         for (var entry : inputIds.entrySet()) {
@@ -125,6 +134,35 @@ public class DerivationService {
         return new Result(outputIds, diagnostics);
     }
 
+    /**
+     * Adds the inputs that are not named by the request but reached from another input, following a
+     * reference of its root elements. One that cannot be found is left out.
+     */
+    private void addReached(String workspaceId, Map<DerivationProfile.Input, String> inputIds) {
+        for (DerivationProfile.Input input : profile.inputs()) {
+            if (!input.reached()) {
+                continue;
+            }
+            String sourceId = inputIds.entrySet().stream().filter(e -> e.getKey().alias().equals(input.via()))
+                    .map(Map.Entry::getValue).findFirst().orElse(null);
+            if (sourceId == null) {
+                continue;
+            }
+            for (EObject root : store.load(workspaceId, sourceId).getContents()) {
+                EStructuralFeature feature = root.eClass().getEStructuralFeature(input.reference());
+                Object value = feature == null ? null : root.eGet(feature);
+                Object first = value instanceof List<?> list ? (list.isEmpty() ? null : list.get(0)) : value;
+                if (first instanceof EObject target && !target.eIsProxy() && target.eResource() != null) {
+                    String id = target.eResource().getURI().trimFileExtension().lastSegment();
+                    if (store.exists(workspaceId, id) && input.metamodel().equals(store.meta(workspaceId, id).metamodel())) {
+                        inputIds.put(input, id);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     private Map<String, String> outputIds(String primaryId) {
         Map<String, String> ids = new LinkedHashMap<>();
         profile.outputs().forEach(output -> ids.put(output.result(), primaryId + "." + output.idSuffix()));
@@ -137,8 +175,14 @@ public class DerivationService {
         ResourceSet session = store.newSession();
         EtlModule module = new EtlModule();
         Scripts.parse(module, profile.script(), source);
-        inputIds.forEach((input, id) -> module.getContext().getModelRepository()
-                .addModel(Scripts.model(input.alias(), store.loadIn(session, workspaceId, id), registry.packages())));
+        for (DerivationProfile.Input input : profile.inputs()) {
+            String id = inputIds.get(input);
+            // A reached input that is not there is seen by the script as an empty model.
+            Resource resource = id != null ? store.loadIn(session, workspaceId, id)
+                    : new XMIResourceImpl(URI.createURI("empty:" + input.alias()));
+            module.getContext().getModelRepository()
+                    .addModel(Scripts.model(input.alias(), resource, registry.packages()));
+        }
         String primaryId = inputIds.get(profile.primary());
         Map<DerivationProfile.Output, XMLResource> produced = new LinkedHashMap<>();
         for (DerivationProfile.Output output : profile.outputs()) {
@@ -247,6 +291,9 @@ public class DerivationService {
             }
             Map<DerivationProfile.Input, String> inputIds = new LinkedHashMap<>();
             for (DerivationProfile.Input input : profile.inputs()) {
+                if (input.reached()) {
+                    continue;
+                }
                 if (input == primary) {
                     inputIds.put(input, candidate.id());
                     continue;
@@ -255,7 +302,8 @@ public class DerivationService {
                 models.stream().filter(m -> referenced.contains(m.id())).findFirst()
                         .or(() -> models.stream().findFirst()).ifPresent(m -> inputIds.put(input, m.id()));
             }
-            if (inputIds.size() == profile.inputs().size()) {
+            if (inputIds.size() == profile.inputs().stream().filter(i -> !i.reached()).count()) {
+                addReached(workspaceId, inputIds);
                 result.add(inputIds);
             }
         }

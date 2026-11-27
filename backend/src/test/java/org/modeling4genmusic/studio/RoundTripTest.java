@@ -26,6 +26,8 @@ class RoundTripTest {
 
     private static final String WS = "default";
     private static final String PROFILE = "http://music/profile";
+    private static final String NEEDS = "http://music/needs";
+    private static final String CATALOG = "catalogo";
     private static final String EXERCISE = "http://music/exercise";
     private static final String QUALITY = "http://music/quality";
     private static final String WEAVING = "http://music/weaving";
@@ -39,6 +41,7 @@ class RoundTripTest {
     void setUp() {
         StudioProperties properties = StudioProperties.of(Path.of("../metamodels"), workspace);
         store = new WorkspaceStore(properties, new MetamodelRegistry(properties), new ObjectMapper());
+        saveTheCatalog();
     }
 
     private static ObjectNode node(String id, String eClass, Map<String, Object> attributes,
@@ -64,14 +67,48 @@ class RoundTripTest {
                                 leaf("s2", "Skill",
                                         Map.of("area", "PITCH_READING", "level", 3, "confidence", 0.8))),
                         "needs",
-                        List.of(leaf("n1", "LowVision", Map.of("minStaffScale", 1.5)),
-                                leaf("n2", "HandSpanLimit",
-                                        Map.of("hand", "RIGHT", "handSpanCm", 16.0, "maxStretchSemitones", 9)),
-                                leaf("n3", "HandSpanLimit",
-                                        Map.of("hand", "LEFT", "handSpanCm", 0.0, "maxStretchSemitones", 10))),
+                        List.of(need("n1", "t_vision", Map.of("p_scale", "1.5")),
+                                need("n2", "t_span", Map.of("p_stretch", "9"))),
                         "patterns",
                         List.of(leaf("p1", "PatternMastery", Map.of("expression", "8. 16", "status", "LEARNING")))),
+                Map.of("catalog", List.of(new Ref(CATALOG, "cat", null)))));
+    }
+
+    /** A need of the profile: a reference to its type in the catalog and one slot per given parameter. */
+    private static ObjectNode need(String id, String type, Map<String, String> values) {
+        List<ObjectNode> slots = values.entrySet().stream()
+                .map(e -> node(id + "_" + e.getKey(), "Slot", Map.of("value", e.getValue()), null,
+                        Map.of("parameter", List.of(new Ref(CATALOG, e.getKey(), null)))))
+                .toList();
+        return node(id, "Need", Map.of(), Map.of("slots", slots), Map.of("type", List.of(new Ref(CATALOG, type, null))));
+    }
+
+    /** The type level the profile refers to: two need types, each with a parameter and an effect. */
+    private static List<ObjectNode> catalogRoots() {
+        ObjectNode scale = leaf("p_scale", "ParameterDef",
+                Map.of("name", "minStaffScale", "kind", "DECIMAL", "required", true, "min", 1.0));
+        ObjectNode render = node("e_render", "ConstraintEffect", Map.of("constraintClass", "RenderConstraint"),
+                Map.of("bindings", List.of(node("b_scale", "Binding", Map.of("feature", "staffScale"), null,
+                        Map.of("parameter", List.of(new Ref(null, "p_scale", null)))))),
+                null);
+        ObjectNode stretch = leaf("p_stretch", "ParameterDef",
+                Map.of("name", "maxStretchSemitones", "kind", "INTERVAL", "required", true));
+        ObjectNode bars = node("e_bars", "SpecEffect", Map.of("feature", "bars", "combine", "MIN", "literal", "4"),
+                null, null);
+        return List.of(node("cat", "NeedCatalog", Map.of("name", "test"),
+                Map.of("types",
+                        List.of(node("t_vision", "NeedType", Map.of("name", "LowVision"),
+                                Map.of("parameters", List.of(scale), "effects", List.of(render)), null),
+                                node("t_span", "NeedType", Map.of("name", "HandSpanLimit"),
+                                        Map.of("parameters", List.of(stretch), "effects", List.of(bars)), null))),
                 null));
+    }
+
+    /** Saved before each test: the profiles refer to it. */
+    private void saveTheCatalog() {
+        ModelDocument saved = save(NEEDS, "Catalogo", null, catalogRoots());
+        assertThat(saved.id()).isEqualTo(CATALOG);
+        assertThat(store.get(WS, CATALOG).roots()).isEqualTo(catalogRoots());
     }
 
     private static List<ObjectNode> exerciseRoots(String learnerModel) {

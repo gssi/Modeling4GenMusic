@@ -5,6 +5,11 @@ const TEACHER = 'rgb(29, 79, 184)'
 const DERIVED = 'rgb(30, 107, 58)'
 
 test('profile from the learner form, derivation, provenance colours and generated exercise', async ({ page, request }) => {
+  // the catalog of need types is a model of the workspace: here it comes from the fixtures
+  const catalog = await request.post('/api/models/import', {
+    multipart: { file: { name: 'default.needs.xmi', mimeType: 'text/xml', buffer: readFileSync('../fixtures/giulia/default.needs.xmi') } },
+  })
+  expect(catalog.ok()).toBeTruthy()
   await page.goto('/')
 
   // --- the learner profile, written in the form view
@@ -12,7 +17,7 @@ test('profile from the learner form, derivation, provenance colours and generate
   await page.getByLabel('Nome').fill('Profilo e2e')
   await page.getByRole('button', { name: 'Crea', exact: true }).click()
   // the generic editor offers the new classes without any code written for them
-  await expect(page.getByRole('region', { name: 'Elementi che puoi aggiungere' }).getByRole('button', { name: 'HandSpanLimit' })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Elementi che puoi aggiungere' }).getByRole('button', { name: 'Slot' })).toBeVisible()
   await page.getByRole('button', { name: 'Scheda' }).click()
   await page.getByRole('button', { name: 'Crea il profilo' }).click()
 
@@ -26,15 +31,19 @@ test('profile from the learner form, derivation, provenance colours and generate
   await page.getByLabel('Livello di Ritmo').fill('2')
   await page.getByLabel('Confidenza su Ritmo').fill('0.7')
 
-  await page.getByLabel(/Ipovisione/).check()
-  await expect(page.getByLabel('Ingrandimento minimo del pentagramma')).toHaveValue('1.5')
+  // needs: the form offers the types of the chosen catalog and a field for each of their parameters
+  await page.getByLabel('Catalogo dei bisogni', { exact: true }).selectOption({ label: 'default.needs' })
+  await page.getByLabel('Tipo di bisogno da aggiungere').selectOption({ label: 'Ipovisione' })
+  await page.getByRole('button', { name: 'Aggiungi bisogno' }).click()
+  await expect(page.getByLabel('Ipovisione: ingrandimento minimo del pentagramma')).toHaveValue('1.5')
 
   // a physical limit: the right hand opens a major sixth; the model stores semitones, the form shows names
-  await page.getByRole('button', { name: 'Aggiungi un limite di apertura' }).click()
-  await expect(page.getByLabel('Mano del limite handSpanLimit1')).toHaveValue('RIGHT')
-  await page.getByLabel('Apertura massima della mano destra').selectOption({ label: 'sesta maggiore' })
-  await expect(page.getByLabel('Apertura massima della mano destra')).toHaveValue('9')
-  await page.getByLabel('Apertura in centimetri della mano destra').fill('16')
+  await page.getByLabel('Tipo di bisogno da aggiungere').selectOption({ label: 'Limite di apertura della mano' })
+  await page.getByRole('button', { name: 'Aggiungi bisogno' }).click()
+  await expect(page.getByLabel('Limite di apertura della mano: mano')).toHaveValue('RIGHT')
+  await page.getByLabel('Limite di apertura della mano: apertura massima').selectOption({ label: 'sesta maggiore' })
+  await expect(page.getByLabel('Limite di apertura della mano: apertura massima')).toHaveValue('9')
+  await page.getByLabel('Limite di apertura della mano: misura in cm').fill('16')
 
   await page.getByRole('button', { name: 'Aggiungi pattern' }).click()
   await page.getByLabel('Pattern 1', { exact: true }).fill('8. 16')
@@ -123,7 +132,12 @@ test('profile from the learner form, derivation, provenance colours and generate
   await expect(page.getByRole('textbox', { name: 'maxStretchInPosition' })).toHaveValue('9')
   await expect(page.getByRole('combobox', { name: /^hand/ })).toHaveValue('RIGHT')
   await expect(page.getByText('Limite di apertura della mano destra: massimo 9 semitoni (sesta maggiore)')).toBeVisible()
-  await expect(page.getByText('Regola SpanFromHandLimit')).toBeVisible()
+  await expect(page.getByText('Regola ApplyNeeds')).toBeVisible()
+
+  // the link names both the value of the profile and the effect of the catalog that used it
+  await expect(page.getByRole('button', { name: /need2_maxStretchSemitones\.value/ }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /HandSpanLimit_span in default\.needs/ })).toBeVisible()
+  await expect(page.getByText('Catalogo dei bisogni', { exact: true })).toBeVisible()
 
   // selecting a derived element explains where it comes from
   await node(': RangeConstraint').click()

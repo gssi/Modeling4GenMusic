@@ -11,6 +11,9 @@
     <eStructuralFeatures xsi:type="ecore:EReference" name="qualityModel">
       <eType href="quality.ecore#//QualityModel" xsi:type="ecore:EClass"/>
     </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="needCatalog">
+      <eType href="needs.ecore#//NeedCatalog" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
     <eStructuralFeatures xsi:type="ecore:EReference" name="derivedSpec" lowerBound="1">
       <eType href="exercise.ecore#//ExerciseSpec" xsi:type="ecore:EClass"/>
     </eStructuralFeatures>
@@ -41,5 +44,6 @@
     <eLiterals xsi:type="ecore:EEnumLiteral" name="TEACHER" value="1"/>
     <eLiterals xsi:type="ecore:EEnumLiteral" name="QUALITY_MODEL" value="2"/>
     <eLiterals xsi:type="ecore:EEnumLiteral" name="RULE_DEFAULT" value="3"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="NEED_CATALOG" value="4"/>
   </eClassifiers>
 </ecore:EPackage>

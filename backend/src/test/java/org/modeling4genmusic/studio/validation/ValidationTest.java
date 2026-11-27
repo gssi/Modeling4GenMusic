@@ -332,10 +332,30 @@ class ValidationTest {
 
     // ---------------------------------------------------------------- physical limits
 
-    private String profileWithReach(String name, Map<String, Object> limit) {
-        ObjectNode learner = node("giulia", "Learner", learnerAttributes(),
-                limit == null ? null : Map.of("needs", List.of(leaf("need_handspan", "HandSpanLimit", limit))), null);
-        return save(PROFILE, name, null, learner);
+    private static final String CATALOG = "default.needs";
+
+    /** The catalog of the fixtures, where the type of a hand span limit and its bounds are defined. */
+    private void importCatalog() throws java.io.IOException {
+        if (!store.exists(WS, CATALOG)) {
+            store.importXmi(WS, "default.needs.xmi",
+                    java.nio.file.Files.readAllBytes(Path.of("../fixtures/giulia/default.needs.xmi")), null, null);
+        }
+    }
+
+    /** A profile with one hand span limit: parameter name to value, null for a profile without needs. */
+    private String profileWithReach(String name, Map<String, String> limit) throws java.io.IOException {
+        importCatalog();
+        Map<String, List<ObjectNode>> contents = null;
+        if (limit != null) {
+            List<ObjectNode> slots = limit.entrySet().stream()
+                    .map(e -> node("slot_" + e.getKey(), "Slot", Map.of("value", e.getValue()), null,
+                            Map.of("parameter", List.of(new Ref(CATALOG, "HandSpanLimit_" + e.getKey(), null)))))
+                    .toList();
+            contents = Map.of("needs", List.of(node("need_handspan", "Need", Map.of(), Map.of("slots", slots),
+                    Map.of("type", List.of(new Ref(CATALOG, "HandSpanLimit", null))))));
+        }
+        return save(PROFILE, name, null, node("giulia", "Learner", learnerAttributes(), contents,
+                Map.of("catalog", List.of(new Ref(CATALOG, "needs", null)))));
     }
 
     private static ObjectNode leap(String expression) {
@@ -345,28 +365,95 @@ class ValidationTest {
     }
 
     @Test
-    void handSpanBounds() {
-        // The left hand is the first literal of the enum: a required attribute left at its default is still set.
-        assertThat(service.validate(WS, profileWithReach("Left hand", Map.of("hand", "LEFT", "maxStretchSemitones", 9))))
-                .isEmpty();
-        assertThat(service.validate(WS, profileWithReach("Measured",
-                Map.of("hand", "RIGHT", "handSpanCm", 16.0, "maxStretchSemitones", 24)))).isEmpty();
-
-        Diagnostic narrow = only(service.validate(WS,
-                profileWithReach("Too narrow", Map.of("hand", "RIGHT", "maxStretchSemitones", 1))), "HandSpanBounds");
-        assertThat(narrow.severity()).isEqualTo(Diagnostic.Severity.ERROR);
-        assertThat(narrow.elementId()).isEqualTo("need_handspan");
-        assertThat(narrow.message()).contains("mano destra").contains("1 semitoni");
-        only(service.validate(WS, profileWithReach("Too wide", Map.of("hand", "LEFT", "maxStretchSemitones", 25))),
-                "HandSpanBounds");
-        assertThat(only(service.validate(WS, profileWithReach("Negative span",
-                Map.of("hand", "RIGHT", "handSpanCm", -1.0, "maxStretchSemitones", 9))), "HandSpanBounds").message())
-                .contains("-1.0 cm");
+    void theCatalogOfTheFixturesIsSound() throws Exception {
+        importCatalog();
+        assertThat(service.validate(WS, CATALOG)).isEmpty();
     }
 
     @Test
-    void leapBeyondReach() {
-        String reach = profileWithReach("Reach", Map.of("hand", "RIGHT", "maxStretchSemitones", 9));
+    void needValuesAreCheckedAgainstTheirType() throws Exception {
+        assertThat(service.validate(WS, profileWithReach("Left hand", Map.of("hand", "LEFT", "maxStretchSemitones", "9"))))
+                .isEmpty();
+        assertThat(service.validate(WS, profileWithReach("Measured",
+                Map.of("hand", "RIGHT", "handSpanCm", "16.0", "maxStretchSemitones", "24")))).isEmpty();
+        // A parameter without a slot takes the default of the catalog.
+        assertThat(service.validate(WS, profileWithReach("Defaults", Map.of()))).isEmpty();
+
+        Diagnostic narrow = only(service.validate(WS,
+                profileWithReach("Too narrow", Map.of("hand", "RIGHT", "maxStretchSemitones", "1"))), "SlotValue");
+        assertThat(narrow.severity()).isEqualTo(Diagnostic.Severity.ERROR);
+        assertThat(narrow.elementId()).isEqualTo("slot_maxStretchSemitones");
+        assertThat(narrow.message()).isEqualTo(
+                "Limite di apertura della mano, apertura massima: il valore 1 è sotto il minimo ammesso (2)");
+        assertThat(only(service.validate(WS, profileWithReach("Too wide", Map.of("maxStretchSemitones", "25"))),
+                "SlotValue").message()).contains("sopra il massimo ammesso (24)");
+        assertThat(only(service.validate(WS, profileWithReach("Negative span",
+                Map.of("handSpanCm", "-1.0", "maxStretchSemitones", "9"))), "SlotValue").message())
+                .contains("misura in cm").contains("-1.0");
+        assertThat(only(service.validate(WS, profileWithReach("Half a semitone", Map.of("maxStretchSemitones", "9.5"))),
+                "SlotValue").message()).contains("non è un numero intero");
+        assertThat(only(service.validate(WS, profileWithReach("Third hand", Map.of("hand", "MIDDLE"))), "SlotValue")
+                .message()).contains("LEFT o RIGHT");
+    }
+
+    @Test
+    void needsWithoutACatalogOrOfAnotherCatalogAreErrors() throws Exception {
+        importCatalog();
+        ObjectNode need = node("n", "Need", Map.of(), null,
+                Map.of("type", List.of(new Ref(CATALOG, "LowVision", null))));
+        String orphan = save(PROFILE, "No catalog", null,
+                node("giulia", "Learner", learnerAttributes(), Map.of("needs", List.of(need)), null));
+        assertThat(names(service.validate(WS, orphan))).containsExactly("CatalogForNeeds");
+
+        // A slot for a parameter of another type says nothing about this need.
+        ObjectNode stray = node("s", "Slot", Map.of("value", "4"), null,
+                Map.of("parameter", List.of(new Ref(CATALOG, "ShortAttentionSpan_maxBars", null))));
+        ObjectNode mixed = node("n", "Need", Map.of(), Map.of("slots", List.of(stray)),
+                Map.of("type", List.of(new Ref(CATALOG, "LowVision", null))));
+        String id = save(PROFILE, "Stray slot", null, node("giulia", "Learner", learnerAttributes(),
+                Map.of("needs", List.of(mixed)), Map.of("catalog", List.of(new Ref(CATALOG, "needs", null)))));
+        assertThat(only(service.validate(WS, id), "SlotOfTheType").elementId()).isEqualTo("s");
+    }
+
+    @Test
+    void aCatalogThatCannotBeAppliedIsRefused() {
+        ObjectNode scale = leaf("p", "ParameterDef", Map.of("name", "scale", "kind", "DECIMAL", "min", 3.0, "max", 1.0));
+        ObjectNode hand = leaf("h", "ParameterDef", Map.of("name", "hand", "kind", "HAND", "defaultValue", "BOTH"));
+        Map<String, List<Ref>> byScale = Map.of("parameter", List.of(new Ref(null, "p", null)));
+        ObjectNode unknownClass = node("e1", "ConstraintEffect", Map.of("constraintClass", "PedalConstraint"), null, null);
+        ObjectNode abstractClass = node("e2", "ConstraintEffect", Map.of("constraintClass", "Constraint"), null, null);
+        ObjectNode notAConstraint = node("e3", "ConstraintEffect", Map.of("constraintClass", "Pattern"), null, null);
+        ObjectNode render = node("e4", "ConstraintEffect", Map.of("constraintClass", "RenderConstraint"),
+                Map.of("bindings", List.of(node("b1", "Binding", Map.of("feature", "zoom"), null, byScale),
+                        node("b2", "Binding", Map.of("feature", "staffScale"), null,
+                                Map.of("parameter", List.of(new Ref(null, "h", null)))),
+                        node("b3", "Binding", Map.of("feature", "staffScale", "literal", "big"), null, null),
+                        node("b4", "Binding", Map.of("feature", "staffScale"), null, null),
+                        node("b5", "Binding", Map.of("feature", "staffScale"), null, byScale))),
+                null);
+        ObjectNode key = node("e5", "SpecEffect", Map.of("feature", "key", "combine", "MIN", "literal", "C"), null, null);
+        ObjectNode bars = node("e6", "SpecEffect", Map.of("feature", "bars", "combine", "MIN", "literal", "4"), null, null);
+        String id = save("http://music/needs", "Broken catalog", null, node("cat", "NeedCatalog", Map.of("name", "x"),
+                Map.of("types", List.of(node("t", "NeedType", Map.of("name", "Odd"),
+                        Map.of("parameters", List.of(scale, hand), "effects",
+                                List.of(unknownClass, abstractClass, notAConstraint, render, key, bars)),
+                        null))),
+                null));
+
+        List<Diagnostic> diagnostics = service.validate(WS, id);
+        assertThat(diagnostics).extracting(d -> d.constraint() + "@" + d.elementId()).containsExactlyInAnyOrder(
+                "BoundsOrdered@p", "DefaultIsAValue@h", "KnownConstraintClass@e1", "KnownConstraintClass@e2",
+                "KnownConstraintClass@e3", "BindableFeature@b1", "BindableFeature@b2", "BindableFeature@b3",
+                "BindableFeature@b4", "BoundOnANumber@e5");
+        assertThat(diagnostics).allMatch(d -> d.severity() == Diagnostic.Severity.ERROR);
+        assertThat(only(diagnostics, "BoundOnANumber").message()).contains("Odd").contains("«key»");
+        assertThat(diagnostics.stream().filter(d -> "b2".equals(d.elementId())).findFirst().orElseThrow().message())
+                .contains("non accetta un parametro di tipo HAND");
+    }
+
+    @Test
+    void leapBeyondReach() throws Exception {
+        String reach = profileWithReach("Reach", Map.of("hand", "RIGHT", "maxStretchSemitones", "9"));
         String fine = save(EXERCISE, "Sixth", "intent", intent(reach, 60, 0, List.of(leap("+9 -4")), List.of()));
         assertThat(names(service.validate(WS, fine))).doesNotContain("LeapBeyondReach");
 
@@ -378,7 +465,7 @@ class ValidationTest {
         assertThat(diagnostic.message()).contains("12 semitoni (ottava)").contains("cambio di posizione");
 
         // Only the right hand counts, and without a limit there is nothing to compare with.
-        String leftOnly = profileWithReach("Left only", Map.of("hand", "LEFT", "maxStretchSemitones", 5));
+        String leftOnly = profileWithReach("Left only", Map.of("hand", "LEFT", "maxStretchSemitones", "5"));
         String noLimit = profileWithReach("No limit", null);
         for (String profile : List.of(leftOnly, noLimit)) {
             String id = save(EXERCISE, "Octave for " + profile, "intent",

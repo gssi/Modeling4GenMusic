@@ -1,5 +1,6 @@
 // Derivation of a complete exercise spec from the learner profile (L), the teaching intent (T)
-// and the quality model (Q). It writes the spec (S) and a weaving model (W): every element or
+// and the quality model (Q). The needs of the learner are typed by a catalog (N, empty when the
+// profile has none): what each of them does to the spec is read from its type, not written here. It writes the spec (S) and a weaving model (W): every element or
 // attribute created in S gets a Link in W with the rule that produced it and a readable rationale.
 //
 // Rules that create elements are transformation rules; rules that only set attributes of the spec,
@@ -30,6 +31,7 @@ pre {
   weaving.learner = learner();
   weaving.teacherIntent = intent();
   weaving.qualityModel = Q!QualityModel.all.first();
+  weaving.needCatalog = N!NeedCatalog.all.first();
 }
 
 // ---------------------------------------------------------------- rules that create elements
@@ -183,43 +185,6 @@ rule RangeFromLearner
   spec().constraints.add(d);
 }
 
-// 7. A learner with low vision gets a larger staff.
-rule RenderForLowVision
-  transform n : L!LowVision
-  to d : S!RenderConstraint {
-
-  guard: n.eContainer() = learner()
-
-  ids.numbered(d, "c_render");
-  d.strength = S!Strength#HARD;
-  d.staffScale = n.minStaffScale;
-
-  derivation("RenderForLowVision", d, null,
-    "Ipovisione: il pentagramma va ingrandito almeno di " + n.minStaffScale + " volte")
-    .from(W!Origin#PROFILE, n, "minStaffScale");
-  spec().constraints.add(d);
-}
-
-// A physical limit of a hand always becomes a hard constraint, for chords and for leaps in position.
-rule SpanFromHandLimit
-  transform n : L!HandSpanLimit
-  to d : S!SpanConstraint {
-
-  guard: n.eContainer() = learner()
-
-  ids.numbered(d, "c_span");
-  d.strength = S!Strength#HARD;
-  d.hand = n.hand;
-  d.maxSimultaneousSemitones = n.maxStretchSemitones;
-  d.maxStretchInPosition = n.maxStretchSemitones;
-
-  derivation("SpanFromHandLimit", d, null,
-    "Limite di apertura della mano " + (n.hand = L!Hand#LEFT ? "sinistra" : "destra") + ": massimo "
-      + n.maxStretchSemitones + " semitoni (" + intervals.nameOf(n.maxStretchSemitones) + ")")
-    .from(W!Origin#PROFILE, n, "maxStretchSemitones");
-  spec().constraints.add(d);
-}
-
 // 8. Quality goals set by the teacher are kept.
 rule CopyQualityGoals
   transform g : T!QualityGoal
@@ -280,6 +245,61 @@ post TempoLimit {
   }
 }
 
+// 7. Each need of the learner adds the constraints its type describes. Nothing here names a kind of
+// need or of constraint: the class to create and the features to set come from the catalog, so a
+// type added there is applied without touching this script. A limit is stable: always hard.
+post ApplyNeeds {
+  for (need in typedNeeds()) {
+    for (effect in need.type.effects.select(e | e.isTypeOf(N!ConstraintEffect))) {
+      var d = S.createInstance(effect.constraintClass);
+      ids.numbered(d, effect.constraintClass.idBase());
+      d.strength = S!Strength#HARD;
+      var link = derivation("ApplyNeeds", d, null, need.explain(effect));
+      for (binding in effect.bindings) {
+        var value = needs.valueOf(need, binding);
+        if (value.isDefined()) {
+          for (child in needs.set(d, binding.feature, value)) {
+            ids.exact(child, ids.of(d) + "_" + child.eContainingFeature().name);
+            derivation("ApplyNeeds", child, null, need.explain(effect)).from(W!Origin#NEED_CATALOG, effect, null);
+          }
+          link.fromNeed(need, binding);
+        }
+      }
+      link.from(W!Origin#NEED_CATALOG, effect, null);
+      spec().constraints.add(d);
+    }
+  }
+}
+
+// A need can also bound an attribute of the spec itself, such as the tempo or the number of bars.
+// It runs after the rules above, so that it has the last word on what they decided.
+// When the bound overrides what the teacher asked, the link is the fix of the NeedLimitExceeded
+// warning of the intent; when it only tightens a value taken from the profile, it is a derivation.
+post ApplyNeedLimits {
+  var s = spec();
+  for (need in typedNeeds()) {
+    for (effect in need.type.effects.select(e | e.isTypeOf(N!SpecEffect))) {
+      var value = needs.valueOf(need, effect);
+      if (value.isDefined()) {
+        var before = needs.read(s, effect.feature);
+        if (needs.limit(s, effect.feature, value, effect.combine.name)) {
+          var link;
+          if (before.isDefined() and needs.exceeds(intent().requested(effect.feature), value, effect.combine.name)) {
+            link = new W!ConflictFix;
+            link.critique = "NeedLimitExceeded";
+            link.originalValue = before;
+            link.newValue = needs.read(s, effect.feature);
+            link.init("ApplyNeedLimits", s, effect.feature, need.explain(effect));
+          } else {
+            link = derivation("ApplyNeedLimits", s, effect.feature, need.explain(effect));
+          }
+          link.fromNeed(need, effect).from(W!Origin#NEED_CATALOG, effect, null);
+        }
+      }
+    }
+  }
+}
+
 // 9. Dimensions the teacher does not mention stay simple, to keep the focus on the others.
 post FocusOtherDimensionsLow {
   var s = spec();
@@ -320,6 +340,50 @@ operation intent() : T!ExerciseSpec { return T!ExerciseSpec.all.first(); }
 operation spec() : S!ExerciseSpec { return intent().equivalent(); }
 
 operation weaving() : W!DerivationWeaving { return W!DerivationWeaving.all.first(); }
+
+// What the teacher asks for an attribute of the spec, as in intent.evl: the tempo is asked as
+// requestedBpm and ends up bounding maxBpm.
+operation T!ExerciseSpec requested(feature : String) : Any {
+  if (feature = "maxBpm") { return self.requestedBpm > 0 ? self.requestedBpm.asString() : null; }
+  return needs.read(self, feature);
+}
+
+// The needs whose type is found in the catalog, in the order of the profile.
+operation typedNeeds() : Sequence {
+  return learner().needs.select(n | n.type.isDefined() and not n.type.eIsProxy()).asSequence();
+}
+
+// "RangeConstraint" gives ids like c_range_1, "ExcludesPattern" like c_excludes_1.
+operation String idBase() : String {
+  return "c_" + self.replace("Constraint", "").replace("Pattern", "").toLowerCase();
+}
+
+// The rationale of an effect with the values of this learner in place of the parameter names.
+operation L!Need explain(effect : Any) : String {
+  var text = effect.rationale.isDefined() ? effect.rationale : self.type.name;
+  for (parameter in self.type.parameters) {
+    text = needs.fill(text, parameter.name, parameter.show(needs.parameterValue(self, parameter)));
+  }
+  return text;
+}
+
+operation N!ParameterDef show(value : Any) : Any {
+  if (value.isUndefined()) { return null; }
+  if (self.kind = N!ParameterKind#HAND) { return value = "LEFT" ? "sinistra" : "destra"; }
+  if (self.kind = N!ParameterKind#INTERVAL) {
+    return value + " semitoni (" + intervals.nameOf(value.asInteger()) + ")";
+  }
+  return value;
+}
+
+// Source of a value that comes from a parameter: the slot of the profile, or the type when the
+// default of the catalog was used. A literal has no source in the profile.
+operation W!Link fromNeed(need : Any, value : Any) : W!Link {
+  if (value.parameter.isUndefined()) { return self; }
+  var slot = needs.slotOf(need, value.parameter);
+  if (slot.isDefined()) { return self.from(W!Origin#PROFILE, slot, "value"); }
+  return self.from(W!Origin#NEED_CATALOG, value.parameter, "defaultValue");
+}
 
 // Entry of the profile for a rhythm pattern, compared regardless of spacing.
 operation T!Pattern masteryInProfile() : Any {

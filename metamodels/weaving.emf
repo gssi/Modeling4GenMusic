@@ -5,6 +5,7 @@ import "http://www.eclipse.org/emf/2002/Ecore";
 import "profile.ecore";
 import "exercise.ecore";
 import "quality.ecore";
+import "needs.ecore";
 
 // Collega i modelli di input (profilo, intento della docente, quality model)
 // alla spec derivata: ogni Link traccia da quali elementi nasce un elemento
@@ -14,6 +15,7 @@ class DerivationWeaving {
   ref profile.Learner[1] learner;
   ref exercise.ExerciseSpec teacherIntent;
   ref quality.QualityModel qualityModel;
+  ref needs.NeedCatalog needCatalog;
   ref exercise.ExerciseSpec[1] derivedSpec;
   val Link[*] links;
 }
@@ -56,4 +58,5 @@ enum Origin {
   TEACHER = 1;
   QUALITY_MODEL = 2;
   RULE_DEFAULT = 3;
+  NEED_CATALOG = 4;   // an effect of a need type
 }

@@ -3,7 +3,8 @@
   "inputs": [
     { "alias": "L", "metamodel": "http://music/profile", "parameter": "learnerModelId", "validated": true },
     { "alias": "T", "metamodel": "http://music/exercise", "parameter": "teacherIntentModelId", "primary": true, "validated": true },
-    { "alias": "Q", "metamodel": "http://music/quality", "parameter": "qualityModelId" }
+    { "alias": "Q", "metamodel": "http://music/quality", "parameter": "qualityModelId" },
+    { "alias": "N", "metamodel": "http://music/needs", "via": "L", "reference": "catalog", "validated": true }
   ],
   "outputs": [
     { "alias": "S", "metamodel": "http://music/exercise", "idSuffix": "derived", "name": "Spec derivata da %s", "role": "derived", "result": "derivedSpecModelId" },
@@ -12,6 +13,7 @@
   "tools": {
     "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool",
     "intervals": "org.modeling4genmusic.studio.interval.IntervalTool",
-    "ids": "org.modeling4genmusic.studio.derivation.ElementIdTool"
+    "ids": "org.modeling4genmusic.studio.derivation.ElementIdTool",
+    "needs": "org.modeling4genmusic.studio.needs.NeedTool"
   }
 }

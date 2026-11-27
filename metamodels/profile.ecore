@@ -7,6 +7,9 @@
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="lowestMidi" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="highestMidi" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="skills" eType="#//Skill" upperBound="-1" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="catalog">
+      <eType href="needs.ecore#//NeedCatalog" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
     <eStructuralFeatures xsi:type="ecore:EReference" name="needs" eType="#//Need" upperBound="-1" containment="true"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="patterns" eType="#//PatternMastery" upperBound="-1" containment="true"/>
   </eClassifiers>
@@ -15,14 +18,17 @@
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="level" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="confidence" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="Need" abstract="true"/>
-  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Need" name="LowVision">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="minStaffScale" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+  <eClassifiers xsi:type="ecore:EClass" name="Need">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="type" lowerBound="1">
+      <eType href="needs.ecore#//NeedType" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="slots" eType="#//Slot" upperBound="-1" containment="true"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" eSuperTypes="#//Need" name="HandSpanLimit">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="hand" eType="#//Hand" lowerBound="1"/>
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="handSpanCm" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="maxStretchSemitones" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EInt" lowerBound="1"/>
+  <eClassifiers xsi:type="ecore:EClass" name="Slot">
+    <eStructuralFeatures xsi:type="ecore:EReference" name="parameter" lowerBound="1">
+      <eType href="needs.ecore#//ParameterDef" xsi:type="ecore:EClass"/>
+    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="value" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="PatternMastery">
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="expression" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
