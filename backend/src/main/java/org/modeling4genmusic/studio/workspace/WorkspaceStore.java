@@ -38,7 +38,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 
 /**
  * File-system persistence of the models. Each model {@code id} of a workspace is stored as
- * {@code id.xmi} (semantics only), {@code id.meta.json} (name, metamodel, version, role) and
+ * {@code id.xmi} (semantics only), {@code id.meta.json} (name, metamodel, version, role, folder) and
  * {@code id.layout.json} (diagram positions). References between models are relative hrefs.
  * <p>
  * Every save also leaves a copy in {@code .history/id/}: {@code N.xmi} with the content of version
@@ -48,6 +48,8 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 public class WorkspaceStore {
 
     private static final Pattern SAFE_NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
+    private static final int MAX_FOLDER_NAME = 60;
+    private static final int MAX_FOLDER_DEPTH = 4;
     private static final Map<String, Object> XMI_OPTIONS = Map.of(XMLResource.OPTION_ENCODING, "UTF-8");
     private static final String HISTORY_DIR = ".history";
 
@@ -134,13 +136,18 @@ public class WorkspaceStore {
     // ---------------------------------------------------------------- commands
 
     public synchronized ModelDocument create(String workspaceId, String metamodel, String name, String role) {
+        return create(workspaceId, metamodel, name, role, null);
+    }
+
+    public synchronized ModelDocument create(String workspaceId, String metamodel, String name, String role,
+            String folder) {
         EPackage ePackage = requirePackage(metamodel);
         if (name == null || name.isBlank()) {
             throw ApiException.badRequest("Model name is required");
         }
         String id = uniqueId(workspaceId, slug(name));
         XMLResource resource = (XMLResource) newResourceSet().createResource(uri(workspaceId, id));
-        ModelMeta meta = new ModelMeta(name.strip(), ePackage.getNsURI(), 1, blankToNull(role));
+        ModelMeta meta = new ModelMeta(name.strip(), ePackage.getNsURI(), 1, blankToNull(role), folderPath(folder));
         write(workspaceId, id, resource, meta, ModelVersion.CREATED, null);
         return header(id, meta).withRoots(List.of());
     }
@@ -174,6 +181,11 @@ public class WorkspaceStore {
 
     public synchronized ModelDocument importXmi(String workspaceId, String fileName, byte[] content, String name,
             String role) {
+        return importXmi(workspaceId, fileName, content, name, role, null);
+    }
+
+    public synchronized ModelDocument importXmi(String workspaceId, String fileName, byte[] content, String name,
+            String role, String folder) {
         String base = fileName == null ? "" : Path.of(fileName).getFileName().toString();
         if (base.toLowerCase(Locale.ROOT).endsWith(".xmi")) {
             base = base.substring(0, base.length() - 4);
@@ -197,7 +209,7 @@ public class WorkspaceStore {
         String nsUri = resource.getContents().get(0).eClass().getEPackage().getNsURI();
         EPackage ePackage = requirePackage(nsUri);
         String modelName = name == null || name.isBlank() ? id : name.strip();
-        ModelMeta meta = new ModelMeta(modelName, ePackage.getNsURI(), 1, blankToNull(role));
+        ModelMeta meta = new ModelMeta(modelName, ePackage.getNsURI(), 1, blankToNull(role), folderPath(folder));
         write(workspaceId, id, resource, meta, ModelVersion.IMPORTED, null);
         return header(id, meta).withRoots(ModelJsonMapper.toJson(resource));
     }
@@ -226,14 +238,29 @@ public class WorkspaceStore {
         return Files.exists(metaFile(workspaceId, id)) && Files.exists(xmiFile(workspaceId, id));
     }
 
-    /** Saves a resource built by a derivation as the model {@code id}, replacing a previous one if present. */
+    /**
+     * Saves a resource built by a derivation as the model {@code id}, replacing a previous one if present.
+     * A new model goes in the given folder; one that is replaced stays where the user has put it.
+     */
     public synchronized ModelDocument put(String workspaceId, String id, XMLResource resource, String name,
-            String metamodel, String role) {
+            String metamodel, String role, String folder) {
         EPackage ePackage = requirePackage(metamodel);
-        int version = exists(workspaceId, id) ? readMeta(workspaceId, id).version() + 1 : 1;
-        ModelMeta meta = new ModelMeta(name, ePackage.getNsURI(), version, blankToNull(role));
+        ModelMeta previous = exists(workspaceId, id) ? readMeta(workspaceId, id) : null;
+        ModelMeta meta = new ModelMeta(name, ePackage.getNsURI(), previous == null ? 1 : previous.version() + 1,
+                blankToNull(role), previous == null ? folderPath(folder) : previous.folder());
         write(workspaceId, id, resource, meta, ModelVersion.DERIVED, null);
         return header(id, meta).withRoots(ModelJsonMapper.toJson(resource));
+    }
+
+    /** Moves a model to another folder of the workspace, or out of every folder with a blank one. */
+    public synchronized ModelDocument move(String workspaceId, String id, String folder) {
+        ModelMeta next = readMeta(workspaceId, id).inFolder(folderPath(folder));
+        try {
+            json.writerWithDefaultPrettyPrinter().writeValue(metaFile(workspaceId, id).toFile(), next);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return header(id, next);
     }
 
     public synchronized void delete(String workspaceId, String id) {
@@ -287,7 +314,7 @@ public class WorkspaceStore {
         adoptCurrent(workspaceId, id, meta);
         ModelVersion info = readVersion(workspaceId, id, version);
         XMLResource resource = loadVersion(workspaceId, id, version);
-        return new ModelDocument(id, info.name(), meta.metamodel(), info.role(), version, null)
+        return new ModelDocument(id, info.name(), meta.metamodel(), info.role(), meta.folder(), version, null)
                 .withRoots(ModelJsonMapper.toJson(resource));
     }
 
@@ -452,8 +479,33 @@ public class WorkspaceStore {
                 .orElseThrow(() -> ApiException.badRequest("Unknown metamodel: " + nsUri));
     }
 
+    /**
+     * A folder as it is kept: levels separated by a single {@code /}, each one trimmed; null for no
+     * folder. It is only a label, never a path on the disk.
+     */
+    static String folderPath(String folder) {
+        if (folder == null) {
+            return null;
+        }
+        List<String> levels = new ArrayList<>();
+        for (String level : folder.split("/")) {
+            String name = level.strip();
+            if (name.isEmpty()) {
+                continue;
+            }
+            if (name.length() > MAX_FOLDER_NAME || name.chars().anyMatch(Character::isISOControl)) {
+                throw ApiException.badRequest("Invalid folder name: " + name);
+            }
+            levels.add(name);
+        }
+        if (levels.size() > MAX_FOLDER_DEPTH) {
+            throw ApiException.badRequest("Folders can be nested " + MAX_FOLDER_DEPTH + " levels at most");
+        }
+        return levels.isEmpty() ? null : String.join("/", levels);
+    }
+
     private static ModelDocument header(String id, ModelMeta meta) {
-        return new ModelDocument(id, meta.name(), meta.metamodel(), meta.role(), meta.version(), null);
+        return new ModelDocument(id, meta.name(), meta.metamodel(), meta.role(), meta.folder(), meta.version(), null);
     }
 
     private Path dir(String workspaceId) {

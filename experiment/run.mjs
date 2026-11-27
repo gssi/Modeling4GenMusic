@@ -35,7 +35,7 @@ async function call(path, init) {
 
 const json = (method, body) => ({ method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-async function importXmi(file, name, role) {
+async function importXmi(file, name, role, folder) {
   const id = name.replace(/\.xmi$/, '')
   // a model left by an earlier run is replaced, with what was derived from it
   for (const stale of [`${id}.weaving`, `${id}.derived`, id]) {
@@ -45,6 +45,7 @@ async function importXmi(file, name, role) {
   const form = new FormData()
   form.append('file', new Blob([readFileSync(file)], { type: 'text/xml' }), name)
   if (role) form.append('role', role)
+  if (folder) form.append('folder', folder)
   return (await call('/models/import', { method: 'POST', body: form })).json()
 }
 
@@ -171,8 +172,10 @@ async function run(folder, catalog) {
     console.log(`${info.id}: already generated, skipped (use --force to run it again)`)
     return
   }
-  await importXmi(join(dir, `${folder}.profile.xmi`), `${folder}.profile.xmi`)
-  await importXmi(join(dir, `${folder}.intent.xmi`), `${folder}.intent.xmi`, 'intent')
+  // each case in a folder of its own: what is derived from the intent is put next to it
+  const place = `Esperimento/${info.id}`
+  await importXmi(join(dir, `${folder}.profile.xmi`), `${folder}.profile.xmi`, undefined, place)
+  await importXmi(join(dir, `${folder}.intent.xmi`), `${folder}.intent.xmi`, 'intent', place)
   const warnings = await (await call(`/models/${folder}.intent/validate`, { method: 'POST' })).json()
 
   const derivation = await (await call('/derivations', json('POST', { learnerModelId: `${folder}.profile`, teacherIntentModelId: `${folder}.intent`, qualityModelId: 'piano.quality' }))).json()
@@ -215,7 +218,7 @@ const folders = readdirSync(CASES, { withFileTypes: true })
 mkdirSync(join(CASES, 'shared'), { recursive: true })
 for (const file of SHARED) {
   copyFileSync(join(FIXTURES, file), join(CASES, 'shared', file))
-  await importXmi(join(FIXTURES, file), file)
+  await importXmi(join(FIXTURES, file), file, undefined, 'Condivisi')
 }
 const catalog = await model('default.needs')
 

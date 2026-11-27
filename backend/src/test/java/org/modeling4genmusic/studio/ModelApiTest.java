@@ -87,6 +87,40 @@ class ModelApiTest {
     }
 
     @Test
+    void modelsAreCollectedInFoldersWithoutTouchingTheirContent() throws Exception {
+        mvc.perform(post("/api/models").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"metamodel\":\"http://music/profile\",\"name\":\"Foldered\",\"folder\":\" Classe 3 // Pianoforte/ \"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.folder").value("Classe 3/Pianoforte"));
+        mvc.perform(get("/api/models")).andExpect(jsonPath("$[?(@.id=='foldered')].folder", contains("Classe 3/Pianoforte")));
+
+        // Moving changes neither the content nor the version, and saving keeps the folder.
+        mvc.perform(put("/api/models/foldered/folder").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"Archivio\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.folder").value("Archivio"))
+                .andExpect(jsonPath("$.version").value(1));
+        mvc.perform(get("/api/models/foldered/versions")).andExpect(jsonPath("$", hasSize(1)));
+        mvc.perform(put("/api/models/foldered").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"version\":1,\"roots\":[{\"id\":\"l\",\"eClass\":\"Learner\",\"attributes\":{\"name\":\"anna\"}}]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.folder").value("Archivio"))
+                .andExpect(jsonPath("$.version").value(2));
+
+        // Out of every folder.
+        mvc.perform(put("/api/models/foldered/folder").contentType(MediaType.APPLICATION_JSON).content("{\"folder\":\"  \"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.folder").doesNotExist());
+        mvc.perform(put("/api/models/foldered/folder").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"a/b/c/d/e\"}")).andExpect(status().isBadRequest());
+        mvc.perform(put("/api/models/nobody/folder").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"x\"}")).andExpect(status().isNotFound());
+
+        byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", "piano.quality.xmi"));
+        mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", "in-folder.xmi", "text/xml", bytes))
+                .param("folder", "Condivisi")).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.folder").value("Condivisi"));
+        mvc.perform(delete("/api/models/foldered")).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/models/in-folder")).andExpect(status().isNoContent());
+    }
+
+    @Test
     void keepsTheHistoryOfAModelAndRestoresAPastVersion() throws Exception {
         mvc.perform(post("/api/models").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"metamodel\":\"http://music/profile\",\"name\":\"History Test\"}"))

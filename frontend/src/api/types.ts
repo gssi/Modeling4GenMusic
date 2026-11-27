@@ -69,6 +69,8 @@ export interface ModelHeader {
   name: string
   metamodel: string
   role?: string
+  /** Where the model is shown in the workspace, levels separated by `/`. */
+  folder?: string
   version: number
 }
 

@@ -89,8 +89,23 @@ all'indirizzo `host.docker.internal:11434`.
 Ogni modello `id` di un workspace è fatto di tre file in `workspace/<workspace>/`:
 
 - `id.xmi`: il modello, con `xmi:id` stabili; i riferimenti ad altri modelli sono href relativi;
-- `id.meta.json`: nome, metamodello, versione (lock ottimistico) e ruolo;
+- `id.meta.json`: nome, metamodello, versione (lock ottimistico), ruolo e cartella;
 - `id.layout.json`: posizioni dei nodi nel diagramma.
+
+### Cartelle
+
+I modelli si possono raccogliere in cartelle, anche una dentro l'altra (`Classe 3/Giulia`). Il
+pannello «Modelli» le mostra come sezioni che si aprono e chiudono; dentro ciascuna i modelli
+restano raggruppati per tipo. Un modello si sposta dal campo «Cartella» della sua barra, senza
+salvarlo; «+» e «↥» dentro una cartella creano o importano lì. Ciò che si deriva da un intento
+finisce nella cartella dell'intento.
+
+Una cartella è un'etichetta del modello, scritta in `id.meta.json`: sul disco i file restano tutti
+uno accanto all'altro e gli identificativi non cambiano, quindi spostare un modello non tocca i
+riferimenti di chi lo cita, né la sua cronologia. Una cartella esiste finché contiene un modello.
+
+API: `PUT /api/models/{id}/folder` con `{"folder": "Classe 3/Giulia"}` (vuoto per toglierlo da ogni
+cartella); `folder` è accettato anche da `POST /api/models` e `POST /api/models/import`.
 
 ### Versioni
 

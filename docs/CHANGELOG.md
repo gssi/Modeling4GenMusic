@@ -2,6 +2,20 @@
 
 Una nota per milestone. Le modifiche ai metamodelli vanno segnalate qui.
 
+## Cartelle nel workspace
+
+- I modelli si raccolgono in cartelle, anche annidate (`Classe 3/Giulia`). La cartella è un dato di
+  `id.meta.json`, non una sottocartella sul disco: identificativi, riferimenti tra modelli e
+  cronologia non cambiano quando un modello viene spostato.
+- Pannello «Modelli»: cartelle che si aprono e chiudono (lo stato resta nel browser), con i modelli
+  raggruppati per tipo dentro ciascuna; creazione e importazione direttamente in una cartella.
+- Campo «Cartella» nella barra di ogni modello, con le cartelle in uso come suggerimenti. Spostare
+  non crea una versione.
+- I modelli prodotti da una derivazione vanno nella cartella dell'intento; rifacendo la derivazione
+  restano dove sono stati messi.
+- API: `PUT /api/models/{id}/folder`; `folder` in creazione e importazione.
+- `experiment/run.mjs` mette ogni caso in `Esperimento/<ID>` e i modelli comuni in `Condivisi`.
+
 ## Esperimento con gli esperti
 
 - `experiment/`: cinque casi (profilo, intento, descrizione in inglese) e lo script `run.mjs` che

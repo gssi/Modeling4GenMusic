@@ -232,3 +232,41 @@ test('a described rule is proposed with what it would report, then inserted to b
   await page.getByRole('dialog').getByRole('button', { name: 'Ripristina' }).click()
   await expect(page.getByRole('article', { name: 'SlowLearner' })).toHaveCount(0)
 })
+
+test('models are collected in folders of the workspace', async ({ page }) => {
+  await page.goto('/')
+  const workspace = page.getByRole('navigation', { name: 'Modelli del workspace' })
+
+  // a model created with a folder shows inside it
+  await page.getByRole('button', { name: 'Nuovo modello di qualità', exact: true }).click()
+  await page.getByLabel('Nome').fill('Qualità in cartella')
+  await page.getByLabel('Cartella', { exact: true }).fill('Classe 3 / Pianoforte')
+  await page.getByRole('button', { name: 'Crea', exact: true }).click()
+  const outer = workspace.getByRole('region', { name: 'Cartella Classe 3', exact: true })
+  const inner = workspace.getByRole('region', { name: 'Cartella Classe 3/Pianoforte' })
+  await expect(inner.getByRole('button', { name: 'Qualità in cartella', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Cartella del modello')).toHaveValue('Classe 3/Pianoforte')
+
+  // moving it needs no saving: the content of the model is not touched
+  await page.getByLabel('Cartella del modello').fill('Archivio')
+  await page.getByLabel('Cartella del modello').press('Enter')
+  const archive = workspace.getByRole('region', { name: 'Cartella Archivio' })
+  await expect(archive.getByRole('button', { name: 'Qualità in cartella', exact: true })).toBeVisible()
+  await expect(outer).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Salva', exact: true })).toBeDisabled()
+
+  // a closed folder stays closed after a reload
+  await archive.getByRole('button', { name: /^▾?\s*Archivio/ }).click()
+  await expect(archive.getByRole('button', { name: 'Qualità in cartella', exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(workspace.getByRole('region', { name: 'Cartella Archivio' }).getByRole('button', { expanded: false })).toBeVisible()
+  await workspace.getByRole('region', { name: 'Cartella Archivio' }).getByRole('button', { expanded: false }).click()
+  await page.screenshot({ path: 'test-results/folders.png' })
+
+  // out of every folder, the model is back at the top
+  await workspace.getByRole('button', { name: 'Qualità in cartella', exact: true }).click()
+  await page.getByLabel('Cartella del modello').fill('')
+  await page.getByLabel('Cartella del modello').press('Enter')
+  await expect(workspace.getByRole('region', { name: 'Cartella Archivio' })).toHaveCount(0)
+  await expect(workspace.getByRole('button', { name: 'Qualità in cartella', exact: true })).toBeVisible()
+})

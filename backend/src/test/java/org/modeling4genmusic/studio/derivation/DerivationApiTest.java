@@ -299,6 +299,21 @@ class DerivationApiTest {
                 .andExpect(jsonPath("$", hasSize(0)));
     }
 
+    @Test
+    void whatIsDerivedGoesInTheFolderOfTheIntentAndThenStaysWhereItIsPut() throws Exception {
+        store.move(WS, "giulia.intent", "Classe 3/Giulia");
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        assertThat(store.meta(WS, "giulia.intent.derived").folder()).isEqualTo("Classe 3/Giulia");
+        assertThat(store.meta(WS, "giulia.intent.weaving").folder()).isEqualTo("Classe 3/Giulia");
+
+        store.move(WS, "giulia.intent.weaving", "Tracce");
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        assertThat(store.meta(WS, "giulia.intent.weaving").folder()).isEqualTo("Tracce");
+        assertThat(store.meta(WS, "giulia.intent.weaving").version()).isEqualTo(2);
+    }
+
     private void addNeed(String id, String type, String parameter, String value) {
         ObjectNode slot = new ObjectNode(id + "_" + parameter, "Slot", Map.of("value", value), null,
                 Map.of("parameter", List.of(new Ref("default.needs", type + "_" + parameter, null))));

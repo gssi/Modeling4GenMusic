@@ -121,8 +121,10 @@ public class DerivationService {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "Derivazione non riuscita: " + e.getReason());
         }
 
+        // What is derived from a model is kept next to it.
+        String folder = store.meta(workspaceId, primaryId).folder();
         produced.forEach((output, resource) -> store.put(workspaceId, outputIds.get(output.result()), resource,
-                output.name().formatted(primaryName), output.metamodel(), output.role()));
+                output.name().formatted(primaryName), output.metamodel(), output.role(), folder));
 
         List<Diagnostic> diagnostics = new ArrayList<>();
         for (DerivationProfile.Output output : profile.outputs()) {

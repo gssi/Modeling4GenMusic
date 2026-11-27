@@ -5,7 +5,8 @@ import { VersionsButton } from './app/VersionHistory'
 import { RulesView } from './app/RulesView'
 import { DERIVE_TAB, RULES_TAB, useStudio } from './app/store'
 import { metamodelColor } from './app/theme'
-import { WorkspacePanel } from './app/WorkspacePanel'
+import { folderPath } from './app/folders'
+import { FOLDER_SUGGESTIONS, WorkspacePanel } from './app/WorkspacePanel'
 import { roleOptions } from './domain/labels'
 import { DerivationView } from './domain/DerivationView'
 import { provenanceDecoration } from './domain/provenance'
@@ -14,6 +15,35 @@ import { domainView } from './domain/views'
 import { Canvas } from './editor/Canvas'
 import { Palette } from './editor/Palette'
 import { PropertiesPanel } from './editor/PropertiesPanel'
+
+/** Where the model is shown in the workspace: typed, with the folders in use as suggestions. */
+function FolderField({ modelId, folder }: { modelId: string; folder: string }) {
+  const [text, setText] = useState(folder)
+  useEffect(() => setText(folder), [folder])
+  const commit = () => {
+    const next = folderPath(text)
+    setText(next)
+    if (next !== folder) void useStudio.getState().moveModel(modelId, next)
+  }
+  return (
+    <label className="pane-role">
+      Cartella
+      <input
+        type="text"
+        aria-label="Cartella del modello"
+        list={FOLDER_SUGGESTIONS}
+        placeholder="Nessuna"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') commit()
+          if (e.key === 'Escape') setText(folder)
+        }}
+      />
+    </label>
+  )
+}
 
 /** One model in the centre: the switch between diagram and form, and the chosen view. */
 function ModelPane({ modelId, beside }: { modelId: string; beside?: boolean }) {
@@ -28,39 +58,38 @@ function ModelPane({ modelId, beside }: { modelId: string; beside?: boolean }) {
 
   return (
     <section className="pane" aria-label={model.doc.name}>
-      {(view || beside || roles.length > 0) && (
-        <div className="pane-head">
-          {beside && <h2>{model.doc.name}</h2>}
-          {view && (
-            <div className="segmented" role="group" aria-label="Vista del modello">
-              <button type="button" className={mode === 'diagram' ? 'is-on' : undefined} aria-pressed={mode === 'diagram'} onClick={() => setViewMode(modelId, 'diagram')}>
-                Diagramma
-              </button>
-              <button type="button" className={mode === 'form' ? 'is-on' : undefined} aria-pressed={mode === 'form'} onClick={() => setViewMode(modelId, 'form')}>
-                {view.label}
-              </button>
-            </div>
-          )}
-          {roles.length > 0 && (
-            <label className="pane-role">
-              Tipo
-              <select aria-label="Tipo di modello" value={model.doc.role ?? ''} onChange={(e) => setRole(modelId, e.target.value)}>
-                {!model.doc.role && <option value="">Non indicato</option>}
-                {roles.map((role) => (
-                  <option key={role.value} value={role.value}>
-                    {role.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          {beside && (
-            <button type="button" onClick={closeSplit}>
-              Chiudi il confronto
+      <div className="pane-head">
+        {beside && <h2>{model.doc.name}</h2>}
+        {view && (
+          <div className="segmented" role="group" aria-label="Vista del modello">
+            <button type="button" className={mode === 'diagram' ? 'is-on' : undefined} aria-pressed={mode === 'diagram'} onClick={() => setViewMode(modelId, 'diagram')}>
+              Diagramma
             </button>
-          )}
-        </div>
-      )}
+            <button type="button" className={mode === 'form' ? 'is-on' : undefined} aria-pressed={mode === 'form'} onClick={() => setViewMode(modelId, 'form')}>
+              {view.label}
+            </button>
+          </div>
+        )}
+        {roles.length > 0 && (
+          <label className="pane-role">
+            Tipo
+            <select aria-label="Tipo di modello" value={model.doc.role ?? ''} onChange={(e) => setRole(modelId, e.target.value)}>
+              {!model.doc.role && <option value="">Non indicato</option>}
+              {roles.map((role) => (
+                <option key={role.value} value={role.value}>
+                  {role.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {!beside && <FolderField modelId={modelId} folder={model.doc.folder ?? ''} />}
+        {beside && (
+          <button type="button" onClick={closeSplit}>
+            Chiudi il confronto
+          </button>
+        )}
+      </div>
       {Form && mode === 'form' ? (
         <div className="canvas">
           <div className="canvas-toolbar" role="toolbar" aria-label="Azioni sul modello">

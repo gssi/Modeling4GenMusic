@@ -119,8 +119,10 @@ interface StudioState {
   init: () => Promise<void>
   refreshModels: () => Promise<void>
   notify: (notice: Notice | null) => void
-  createModel: (metamodel: string, name: string, role?: string) => Promise<void>
-  importModel: (file: File, role?: string) => Promise<void>
+  createModel: (metamodel: string, name: string, role?: string, folder?: string) => Promise<void>
+  importModel: (file: File, role?: string, folder?: string) => Promise<void>
+  /** Moves a model to a folder of the workspace ('' for none); its content is not touched. */
+  moveModel: (id: string, folder: string) => Promise<void>
   deleteModel: (id: string) => Promise<void>
   openModel: (id: string, selectId?: string) => Promise<void>
   closeTab: (id: string) => void
@@ -477,9 +479,9 @@ export const useStudio = create<StudioState>((set, get) => {
 
     notify: (notice) => set({ notice }),
 
-    createModel: async (metamodel, name, role) => {
+    createModel: async (metamodel, name, role, folder) => {
       try {
-        const doc = await api.createModel(metamodel, name, role)
+        const doc = await api.createModel(metamodel, name, role, folder)
         await get().refreshModels()
         await get().openModel(doc.id)
       } catch (e) {
@@ -487,14 +489,29 @@ export const useStudio = create<StudioState>((set, get) => {
       }
     },
 
-    importModel: async (file, role) => {
+    importModel: async (file, role, folder) => {
       try {
-        const doc = await api.importModel(file, role)
+        const doc = await api.importModel(file, role, folder)
         set((s) => ({ externals: {}, notice: { kind: 'info', text: `Importato «${doc.name}».` }, open: s.open }))
         await get().refreshModels()
         await get().openModel(doc.id)
       } catch (e) {
         set({ notice: { kind: 'error', text: `Importazione non riuscita: ${message(e)}` } })
+      }
+    },
+
+    moveModel: async (id, folder) => {
+      try {
+        const moved = await api.moveModel(id, folder)
+        set((state) => {
+          const opened = state.open[id]
+          return {
+            models: state.models.map((m) => (m.id === id ? { ...m, folder: moved.folder } : m)),
+            open: opened ? { ...state.open, [id]: { ...opened, doc: { ...opened.doc, folder: moved.folder } } } : state.open,
+          }
+        })
+      } catch (e) {
+        set({ notice: { kind: 'error', text: `Spostamento non riuscito: ${message(e)}` } })
       }
     },
 
