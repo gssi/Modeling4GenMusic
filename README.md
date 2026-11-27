@@ -30,6 +30,7 @@ backend/      Spring Boot: modelli EMF, persistenza, validazione (regole in src/
 frontend/     React + Vite: editor generico in src/editor/, parti di dominio in src/domain/
 fixtures/     modelli XMI di esempio (Giulia)
 workspace/    modelli creati a runtime, con la loro cronologia (fuori da git)
+experiment/   casi e risultati della valutazione con gli esperti, pubblicati come sito statico
 docs/         changelog e ADR
 ```
 
@@ -184,13 +185,32 @@ API: `GET /api/derivations/script`, `POST /api/derivations/script/check`,
 
 ## Dal profilo all'esercizio
 
-1. Crea o importa un profilo, un intento didattico e un modello di qualità. Ogni modello si
-   modifica come diagramma oppure, con il selettore «Scheda», come modulo.
+1. Crea o importa un catalogo dei bisogni, un profilo, un intento didattico e un modello di
+   qualità. Ogni modello si modifica come diagramma oppure, con il selettore «Scheda», come modulo.
 2. «Deriva un esercizio» fa scegliere i tre modelli, mostra i controlli sull'intento con le
    correzioni proposte e produce la specifica dell'esercizio e la traccia di derivazione.
 3. Nella specifica derivata il blu indica ciò che ha chiesto la docente, il verde ciò che viene
-   dal profilo o dalle regole; selezionando un elemento si legge il perché e si aprono le sorgenti.
+   dal profilo, dai bisogni o dalle regole; selezionando un elemento si legge il perché e si
+   aprono le sorgenti.
 4. La vista «Esercizio» della specifica chiede un esercizio e lo controlla. Può scriverlo un
    brano di prova fisso oppure un modello musicale locale servito da Ollama (vedi sotto).
 
-Per caricare l'esempio, importa dall'editor i tre file di `fixtures/giulia/` con «Importa XMI».
+Per caricare l'esempio, importa dall'editor i file di `fixtures/giulia/` con «Importa XMI»,
+partendo da `default.needs.xmi`: il profilo cita il catalogo dei bisogni.
+
+## Bisogni dell'allievo
+
+I bisogni non sono classi del metamodello: sono tipi descritti in un modello, il catalogo
+(`fixtures/giulia/default.needs.xmi`, metamodello `needs`). Ogni tipo dichiara i suoi parametri e
+i suoi effetti sulla specifica: quale vincolo creare e con quali valori, oppure quale attributo
+limitare (battute, tempo). Nel profilo un bisogno indica il suo tipo e ne valorizza i parametri.
+
+Per aggiungere un tipo di bisogno apri il catalogo nel diagramma, crea un `NeedType` con i suoi
+`ParameterDef` e almeno un effetto, e salva: la scheda dell'allievo lo propone subito e la
+derivazione lo applica, senza modifiche al codice. Il catalogo è controllato al salvataggio: un
+effetto che nomina una classe o un attributo che il metamodello `exercise` non ha è un errore.
+
+Il limite è il vocabolario dei vincoli: un bisogno che non si esprime con quelli esistenti
+(pattern richiesto o escluso, estensione, apertura della mano, resa grafica, battute, tempo)
+richiede di estendere `exercise`, il generatore e i controlli. Le scelte sono in
+[docs/adr/0006-multi-level-needs.md](docs/adr/0006-multi-level-needs.md).

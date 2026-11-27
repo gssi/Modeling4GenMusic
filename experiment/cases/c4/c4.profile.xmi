@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pr:Learner xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:pr="http://music/profile" xmi:id="sara" name="sara" comfortableBpm="80" lowestMidi="60" highestMidi="77">
+  <skills xmi:id="skill_rhythm" level="3" confidence="0.7"/>
+  <skills xmi:id="skill_pitch" area="PITCH_READING" level="2" confidence="0.7"/>
+  <catalog href="default.needs.xmi#needs"/>
+  <needs xmi:id="need_crowding">
+    <type href="default.needs.xmi#VisualCrowding"/>
+    <slots xmi:id="need_crowding_minStaffScale" value="1.8">
+      <parameter href="default.needs.xmi#VisualCrowding_minStaffScale"/>
+    </slots>
+  </needs>
+  <patterns xmi:id="pm_quarter" expression="4"/>
+  <patterns xmi:id="pm_half" expression="2"/>
+  <patterns xmi:id="pm_eighths" expression="8 8"/>
+</pr:Learner>

@@ -1,0 +1,237 @@
+{
+  "case": "C2",
+  "intentWarnings": [
+    {
+      "rule": "TempoAboveComfort",
+      "severity": "WARNING",
+      "message": "Il tempo richiesto (90 bpm) supera il tempo comodo di giulia (72 bpm)"
+    }
+  ],
+  "derivationDiagnostics": [
+    {
+      "id": "c2.intent#TempoAboveComfort@intent",
+      "modelId": "c2.intent",
+      "elementId": "intent",
+      "severity": "WARNING",
+      "constraint": "TempoAboveComfort",
+      "message": "Il tempo richiesto (90 bpm) supera il tempo comodo di giulia (72 bpm)",
+      "fixes": [
+        {
+          "title": "Limita il tempo a 72 bpm"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "generator": "ollama",
+    "model": "hf.co/mradermacher/ChatMusician-GGUF:Q4_K_M",
+    "seed": 1979531374,
+    "prompt": "Human: Using ABC notation, recreate the given text as a musical score.\nMeter 4/4\nKey G\nNote Length 1/8\nTempo 1/4=72\nNotes A 8 bar exercise for a beginner piano player. It practises the rhythm c>B, used at least 3 times. It never uses the rhythm c<B. All notes stay between C4 and G5. It is a single melodic line without chords, with no leap wider than 9 semitones. </s> Assistant: X:1\nT:Esercizio\nL:1/8\nQ:1/4=72\nM:4/4\nK:G\n",
+    "seconds": 4.4,
+    "meter": "4/4",
+    "key": "G",
+    "tempo": "1/4=72",
+    "attempts": 3
+  },
+  "valid": true,
+  "report": {
+    "valid": true,
+    "checks": [
+      {
+        "name": "bars",
+        "passed": true,
+        "blocking": true,
+        "message": "Le battute sono 8, come richiesto"
+      },
+      {
+        "name": "barLength",
+        "passed": true,
+        "blocking": false,
+        "message": "Ogni battuta dura 4/4"
+      },
+      {
+        "name": "containsPattern",
+        "passed": true,
+        "blocking": true,
+        "message": "Il pattern '8. 16' compare 12 volte (richieste almeno 3)"
+      },
+      {
+        "name": "excludesPattern",
+        "passed": true,
+        "blocking": true,
+        "message": "Il pattern escluso '16 8.' non compare"
+      },
+      {
+        "name": "range",
+        "passed": true,
+        "blocking": true,
+        "message": "Tutte le note sono nell'estensione MIDI 60–79"
+      },
+      {
+        "name": "handSpan",
+        "passed": true,
+        "blocking": true,
+        "message": "Non ci sono note simultanee: l'apertura della mano destra (9 semitoni, sesta maggiore) è rispettata"
+      },
+      {
+        "name": "positionChanges",
+        "passed": true,
+        "blocking": false,
+        "message": "Nessun cambio di posizione della mano destra: non ci sono salti melodici oltre 9 semitoni (sesta maggiore)"
+      }
+    ]
+  },
+  "chosenAttempt": 3,
+  "attempts": [
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=72\nM:4/4\nK:G\nG3 A B3 c | d4 g4 | e3 d c3 B | d6 D>D |\nG3 A B3 c | d4 g4 | f3 e d3 ^c | d6 |]\n",
+      "report": {
+        "valid": false,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 8, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": false,
+            "blocking": false,
+            "message": "La battuta 8 non dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": false,
+            "blocking": true,
+            "message": "Il pattern '8. 16' compare 1 volta, meno di 3 richieste"
+          },
+          {
+            "name": "excludesPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern escluso '16 8.' non compare"
+          },
+          {
+            "name": "range",
+            "passed": true,
+            "blocking": true,
+            "message": "Tutte le note sono nell'estensione MIDI 60–79"
+          },
+          {
+            "name": "handSpan",
+            "passed": true,
+            "blocking": true,
+            "message": "Non ci sono note simultanee: l'apertura della mano destra (9 semitoni, sesta maggiore) è rispettata"
+          },
+          {
+            "name": "positionChanges",
+            "passed": true,
+            "blocking": false,
+            "message": "1 cambio di posizione della mano destra: salti melodici oltre 9 semitoni (sesta maggiore)"
+          }
+        ]
+      }
+    },
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=72\nM:4/4\nK:G\nB3 A B>B c>c | d2 (3BAG A2 G>A | B3 A B>B c>c | d2 (3BAG A2 z2 |\ng4 f4 | e4 d4 | c3 B c>c d>d | B6 |]\n",
+      "report": {
+        "valid": false,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 8, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": false,
+            "blocking": false,
+            "message": "La battuta 8 non dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern '8. 16' compare 7 volte (richieste almeno 3)"
+          },
+          {
+            "name": "excludesPattern",
+            "passed": false,
+            "blocking": true,
+            "message": "Il pattern escluso '16 8.' compare 3 volte"
+          },
+          {
+            "name": "range",
+            "passed": true,
+            "blocking": true,
+            "message": "Tutte le note sono nell'estensione MIDI 60–79"
+          },
+          {
+            "name": "handSpan",
+            "passed": true,
+            "blocking": true,
+            "message": "Non ci sono note simultanee: l'apertura della mano destra (9 semitoni, sesta maggiore) è rispettata"
+          },
+          {
+            "name": "positionChanges",
+            "passed": true,
+            "blocking": false,
+            "message": "1 cambio di posizione della mano destra: salti melodici oltre 9 semitoni (sesta maggiore)"
+          }
+        ]
+      }
+    },
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=72\nM:4/4\nK:G\nB2 A>B G3 E | D2 E>G A2 G>A | B2 d>e d2 e>d | B6 G>A |\nB2 A>B G3 E | D2 E>G A2 G>A | B2 d>e d2 e>d | d6 d>c |]\n",
+      "report": {
+        "valid": true,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 8, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": true,
+            "blocking": false,
+            "message": "Ogni battuta dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern '8. 16' compare 12 volte (richieste almeno 3)"
+          },
+          {
+            "name": "excludesPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern escluso '16 8.' non compare"
+          },
+          {
+            "name": "range",
+            "passed": true,
+            "blocking": true,
+            "message": "Tutte le note sono nell'estensione MIDI 60–79"
+          },
+          {
+            "name": "handSpan",
+            "passed": true,
+            "blocking": true,
+            "message": "Non ci sono note simultanee: l'apertura della mano destra (9 semitoni, sesta maggiore) è rispettata"
+          },
+          {
+            "name": "positionChanges",
+            "passed": true,
+            "blocking": false,
+            "message": "Nessun cambio di posizione della mano destra: non ci sono salti melodici oltre 9 semitoni (sesta maggiore)"
+          }
+        ]
+      }
+    }
+  ]
+}

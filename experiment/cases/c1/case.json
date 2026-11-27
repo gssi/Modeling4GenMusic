@@ -1,0 +1,8 @@
+{
+  "id": "C1",
+  "title": "No special needs (control)",
+  "learner": "Anna is a beginner pianist with no recorded needs. She plays comfortably up to 96 bpm and reads notes from C4 to G5. She has mastered quarter notes and half notes.",
+  "needs": [],
+  "intent": "The teacher asks for an 8-bar exercise in C major, 4/4, at 80 bpm, that practises pairs of eighth notes.",
+  "expectation": "Nothing in the profile overrides the request: the exercise should simply stay in Anna's range and contain the requested rhythm."
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ex:ExerciseSpec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ex="http://music/exercise" xmi:id="spec" key="C" meter="4/4" bars="8" maxBpm="72" requestedBpm="72">
+  <learner href="c5.profile.xmi#luca"/>
+  <constraints xsi:type="ex:ContainsPattern" xmi:id="c_contains_1">
+    <pattern xmi:id="c_contains_1_pattern" expression="8 8"/>
+  </constraints>
+  <constraints xsi:type="ex:RangeConstraint" xmi:id="c_range_1" lowestMidi="60" highestMidi="79"/>
+  <constraints xsi:type="ex:RangeConstraint" xmi:id="c_range_2" lowestMidi="60" highestMidi="67"/>
+  <constraints xsi:type="ex:SpanConstraint" xmi:id="c_span_1" hand="RIGHT" maxSimultaneousSemitones="7" maxStretchInPosition="7"/>
+  <qualityGoals xmi:id="qg_melodic_complexity" attribute="MELODIC_COMPLEXITY"/>
+  <qualityGoals xmi:id="qg_rhythmic_complexity"/>
+</ex:ExerciseSpec>

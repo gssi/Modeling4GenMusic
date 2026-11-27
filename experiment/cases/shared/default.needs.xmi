@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nd:NeedCatalog xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:nd="http://music/needs" xmi:id="needs" name="Bisogni di base">
+  <types xmi:id="LowVision" name="LowVision" label="Ipovisione" description="Serve un pentagramma ingrandito.">
+    <parameters xmi:id="LowVision_minStaffScale" name="minStaffScale" label="Ingrandimento minimo del pentagramma" kind="DECIMAL" min="1.0" max="4.0" defaultValue="1.5"/>
+    <effects xsi:type="nd:ConstraintEffect" xmi:id="LowVision_render" rationale="Ipovisione: il pentagramma va ingrandito almeno di {minStaffScale} volte" constraintClass="RenderConstraint">
+      <bindings xmi:id="LowVision_render_staffScale" parameter="LowVision_minStaffScale" feature="staffScale"/>
+    </effects>
+  </types>
+  <types xmi:id="HandSpanLimit" name="HandSpanLimit" label="Limite di apertura della mano" description="Quanto si apre comodamente la mano sulla tastiera. È un limite stabile, non un obiettivo.">
+    <parameters xmi:id="HandSpanLimit_hand" name="hand" label="Mano" kind="HAND" defaultValue="RIGHT"/>
+    <parameters xmi:id="HandSpanLimit_maxStretchSemitones" name="maxStretchSemitones" label="Apertura massima" kind="INTERVAL" min="2.0" max="24.0" defaultValue="12"/>
+    <parameters xmi:id="HandSpanLimit_handSpanCm" name="handSpanCm" label="Misura in cm" kind="DECIMAL" required="false" min="1.0"/>
+    <effects xsi:type="nd:ConstraintEffect" xmi:id="HandSpanLimit_span" rationale="Limite di apertura della mano {hand}: massimo {maxStretchSemitones}" constraintClass="SpanConstraint">
+      <bindings xmi:id="HandSpanLimit_span_hand" parameter="HandSpanLimit_hand" feature="hand"/>
+      <bindings xmi:id="HandSpanLimit_span_chord" parameter="HandSpanLimit_maxStretchSemitones" feature="maxSimultaneousSemitones"/>
+      <bindings xmi:id="HandSpanLimit_span_leap" parameter="HandSpanLimit_maxStretchSemitones" feature="maxStretchInPosition"/>
+    </effects>
+  </types>
+  <types xmi:id="ShortAttentionSpan" name="ShortAttentionSpan" label="Attenzione breve" description="L'esercizio deve restare corto.">
+    <parameters xmi:id="ShortAttentionSpan_maxBars" name="maxBars" label="Numero massimo di battute" min="1.0" max="64.0" defaultValue="4"/>
+    <effects xsi:type="nd:SpecEffect" xmi:id="ShortAttentionSpan_bars" rationale="Attenzione breve: l'esercizio non supera {maxBars} battute" parameter="ShortAttentionSpan_maxBars" feature="bars"/>
+  </types>
+  <types xmi:id="ReducedMotorSpeed" name="ReducedMotorSpeed" label="Velocità motoria ridotta" description="I movimenti sono più lenti: il tempo ha un tetto.">
+    <parameters xmi:id="ReducedMotorSpeed_maxBpm" name="maxBpm" label="Tempo massimo (bpm)" min="20.0" max="240.0" defaultValue="60"/>
+    <effects xsi:type="nd:SpecEffect" xmi:id="ReducedMotorSpeed_tempo" rationale="Velocità motoria ridotta: il tempo non supera {maxBpm} bpm" parameter="ReducedMotorSpeed_maxBpm" feature="maxBpm"/>
+  </types>
+  <types xmi:id="VisualCrowding" name="VisualCrowding" label="Affollamento visivo" description="Le note fitte si confondono: pentagramma più grande e niente gruppi di semicrome.">
+    <parameters xmi:id="VisualCrowding_minStaffScale" name="minStaffScale" label="Ingrandimento minimo del pentagramma" kind="DECIMAL" min="1.0" max="4.0" defaultValue="1.8"/>
+    <effects xsi:type="nd:ConstraintEffect" xmi:id="VisualCrowding_render" rationale="Affollamento visivo: il pentagramma va ingrandito almeno di {minStaffScale} volte" constraintClass="RenderConstraint">
+      <bindings xmi:id="VisualCrowding_render_staffScale" parameter="VisualCrowding_minStaffScale" feature="staffScale"/>
+    </effects>
+    <effects xsi:type="nd:ConstraintEffect" xmi:id="VisualCrowding_sparse" rationale="Affollamento visivo: niente coppie di semicrome, che addensano la pagina" constraintClass="ExcludesPattern">
+      <bindings xmi:id="VisualCrowding_sparse_kind" literal="RHYTHM" feature="pattern.kind"/>
+      <bindings xmi:id="VisualCrowding_sparse_expression" literal="16 16" feature="pattern.expression"/>
+    </effects>
+  </types>
+  <types xmi:id="FiveFingerPosition" name="FiveFingerPosition" label="Posizione fissa della mano" description="La mano non si sposta: le note restano sotto le cinque dita.">
+    <parameters xmi:id="FiveFingerPosition_lowestMidi" name="lowestMidi" label="Nota più grave" kind="NOTE" min="0.0" max="127.0" defaultValue="60"/>
+    <parameters xmi:id="FiveFingerPosition_highestMidi" name="highestMidi" label="Nota più acuta" kind="NOTE" min="0.0" max="127.0" defaultValue="67"/>
+    <effects xsi:type="nd:ConstraintEffect" xmi:id="FiveFingerPosition_range" rationale="Posizione fissa della mano: le note restano tra la nota MIDI {lowestMidi} e la {highestMidi}" constraintClass="RangeConstraint">
+      <bindings xmi:id="FiveFingerPosition_range_low" parameter="FiveFingerPosition_lowestMidi" feature="lowestMidi"/>
+      <bindings xmi:id="FiveFingerPosition_range_high" parameter="FiveFingerPosition_highestMidi" feature="highestMidi"/>
+    </effects>
+  </types>
+</nd:NeedCatalog>

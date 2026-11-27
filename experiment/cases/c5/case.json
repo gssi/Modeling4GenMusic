@@ -1,0 +1,17 @@
+{
+  "id": "C5",
+  "title": "Fixed hand position and narrow hand span",
+  "learner": "Luca plays comfortably up to 84 bpm. He can read notes from C4 to G5 and has mastered quarter notes and half notes.",
+  "needs": [
+    {
+      "type": "Five-finger position",
+      "description": "His hand does not move on the keyboard: all notes stay under the five fingers, from C4 to G4."
+    },
+    {
+      "type": "Hand span limit",
+      "description": "His right hand opens comfortably up to a perfect fifth (7 semitones)."
+    }
+  ],
+  "intent": "The teacher asks for an 8-bar exercise in C major, 4/4, at 72 bpm, that practises pairs of eighth notes.",
+  "expectation": "Although Luca can read up to G5, every note should stay between C4 and G4, with no leap wider than a fifth."
+}

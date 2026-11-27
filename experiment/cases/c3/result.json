@@ -1,0 +1,243 @@
+{
+  "case": "C3",
+  "intentWarnings": [
+    {
+      "rule": "NeedLimitExceeded",
+      "severity": "WARNING",
+      "message": "Attenzione breve: l'esercizio non supera 4 battute (richiesto: 8); Velocità motoria ridotta: il tempo non supera 60 bpm (richiesto: 100): la derivazione applicherà il limite di marco"
+    },
+    {
+      "rule": "TempoAboveComfort",
+      "severity": "WARNING",
+      "message": "Il tempo richiesto (100 bpm) supera il tempo comodo di marco (90 bpm)"
+    }
+  ],
+  "derivationDiagnostics": [
+    {
+      "id": "c3.intent#NeedLimitExceeded@intent",
+      "modelId": "c3.intent",
+      "elementId": "intent",
+      "severity": "WARNING",
+      "constraint": "NeedLimitExceeded",
+      "message": "Attenzione breve: l'esercizio non supera 4 battute (richiesto: 8); Velocità motoria ridotta: il tempo non supera 60 bpm (richiesto: 100): la derivazione applicherà il limite di marco",
+      "fixes": []
+    },
+    {
+      "id": "c3.intent#TempoAboveComfort@intent",
+      "modelId": "c3.intent",
+      "elementId": "intent",
+      "severity": "WARNING",
+      "constraint": "TempoAboveComfort",
+      "message": "Il tempo richiesto (100 bpm) supera il tempo comodo di marco (90 bpm)",
+      "fixes": [
+        {
+          "title": "Limita il tempo a 90 bpm"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "generator": "ollama",
+    "model": "hf.co/mradermacher/ChatMusician-GGUF:Q4_K_M",
+    "seed": 104578692,
+    "prompt": "Human: Using ABC notation, recreate the given text as a musical score.\nMeter 4/4\nKey C\nNote Length 1/8\nTempo 1/4=60\nNotes A 4 bar exercise for a beginner piano player. It practises the rhythm cB, used at least 1 times. All notes stay between C4 and C5. </s> Assistant: X:1\nT:Esercizio\nL:1/8\nQ:1/4=60\nM:4/4\nK:C\n",
+    "seconds": 5.3,
+    "meter": "4/4",
+    "key": "C",
+    "tempo": "1/4=60",
+    "attempts": 5
+  },
+  "valid": false,
+  "report": {
+    "valid": false,
+    "checks": [
+      {
+        "name": "bars",
+        "passed": true,
+        "blocking": true,
+        "message": "Le battute sono 4, come richiesto"
+      },
+      {
+        "name": "barLength",
+        "passed": true,
+        "blocking": false,
+        "message": "Ogni battuta dura 4/4"
+      },
+      {
+        "name": "containsPattern",
+        "passed": true,
+        "blocking": true,
+        "message": "Il pattern '8 8' compare 9 volte (richieste almeno 1)"
+      },
+      {
+        "name": "range",
+        "passed": false,
+        "blocking": true,
+        "message": "12 note sono fuori dall'estensione MIDI 60–72 (l'esercizio va da 64 a 79)"
+      }
+    ]
+  },
+  "chosenAttempt": 1,
+  "attempts": [
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=60\nM:4/4\nK:C\nc3 d e2 f2 | gfed cBGF | E2 c2 de f2 | e6 cd |]\n",
+      "report": {
+        "valid": false,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 4, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": true,
+            "blocking": false,
+            "message": "Ogni battuta dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern '8 8' compare 9 volte (richieste almeno 1)"
+          },
+          {
+            "name": "range",
+            "passed": false,
+            "blocking": true,
+            "message": "12 note sono fuori dall'estensione MIDI 60–72 (l'esercizio va da 64 a 79)"
+          }
+        ]
+      }
+    },
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=60\nM:4/4\nK:C\nc3 d e2 f2 | g2 a2 g2 (3(ed)c | B3 A G2 AB | c4 z2 |]\n",
+      "report": {
+        "valid": false,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 4, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": false,
+            "blocking": false,
+            "message": "La battuta 4 non dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern '8 8' compare 1 volta (richieste almeno 1)"
+          },
+          {
+            "name": "range",
+            "passed": false,
+            "blocking": true,
+            "message": "8 note sono fuori dall'estensione MIDI 60–72 (l'esercizio va da 67 a 81)"
+          }
+        ]
+      }
+    },
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=60\nM:4/4\nK:C\ne2 dc B2 cd | cB AG E2 EF | G2 AF D2 CD | E2 C2 z2 |]\n",
+      "report": {
+        "valid": false,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 4, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": false,
+            "blocking": false,
+            "message": "La battuta 4 non dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern '8 8' compare 8 volte (richieste almeno 1)"
+          },
+          {
+            "name": "range",
+            "passed": false,
+            "blocking": true,
+            "message": "3 note sono fuori dall'estensione MIDI 60–72 (l'esercizio va da 60 a 76)"
+          }
+        ]
+      }
+    },
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=60\nM:4/4\nK:C\nc3 d e2 f2 | g2 a2 g4 | c'2 bc' ag fe | d2 ef d4 |]\n",
+      "report": {
+        "valid": false,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 4, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": true,
+            "blocking": false,
+            "message": "Ogni battuta dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern '8 8' compare 6 volte (richieste almeno 1)"
+          },
+          {
+            "name": "range",
+            "passed": false,
+            "blocking": true,
+            "message": "17 note sono fuori dall'estensione MIDI 60–72 (l'esercizio va da 72 a 84)"
+          }
+        ]
+      }
+    },
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=60\nM:4/4\nK:C\nc2 de fgab | c'2 d'c' b2 a2 | g2 ga gfed | c2 BA G2 F2 |]\n",
+      "report": {
+        "valid": false,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 4, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": true,
+            "blocking": false,
+            "message": "Ogni battuta dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern '8 8' compare 12 volte (richieste almeno 1)"
+          },
+          {
+            "name": "range",
+            "passed": false,
+            "blocking": true,
+            "message": "18 note sono fuori dall'estensione MIDI 60–72 (l'esercizio va da 65 a 86)"
+          }
+        ]
+      }
+    }
+  ]
+}

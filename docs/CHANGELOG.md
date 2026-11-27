@@ -2,6 +2,48 @@
 
 Una nota per milestone. Le modifiche ai metamodelli vanno segnalate qui.
 
+## Esperimento con gli esperti
+
+- `experiment/`: cinque casi (profilo, intento, descrizione in inglese) e lo script `run.mjs` che
+  li deriva, chiede l'esercizio al modello musicale e scrive specifica, traccia, esercizio, esito
+  dei controlli e requisiti con identificativi stabili (`C3-R2`). Dettagli in
+  `experiment/README.md`.
+- Sito statico in inglese (`frontend/experiment.html`, `npm run build:experiment`): per ogni caso
+  descrizione, requisiti, partitura con ascolto e file da scaricare; con `?view=full` anche i
+  controlli automatici, i tentativi e la richiesta al modello. Non serve il backend.
+- `.github/workflows/pages.yml` pubblica il sito su GitHub Pages.
+- `ScorePlayer` accetta i testi dei comandi, per una pagina in un'altra lingua.
+
+## Bisogni tipizzati da un catalogo
+
+**Modifica ai metamodelli** (scelte in `docs/adr/0006-multi-level-needs.md`):
+
+- Nuovo metamodello `needs` (`http://music/needs`): `NeedCatalog`, `NeedType`, `ParameterDef`,
+  `Effect` con `ConstraintEffect` e `SpecEffect`, `Value` con `Binding`; enum `ParameterKind` e
+  `Combine`.
+- `profile`: tolte `LowVision` e `HandSpanLimit`. `Need` è concreta, con `type [1]` verso
+  `needs.NeedType` e gli `Slot` (`parameter [1]`, `value`); `Learner` ha `catalog` verso
+  `needs.NeedCatalog`. I profili scritti con le vecchie classi vanno riscritti.
+- `weaving`: `DerivationWeaving.needCatalog` e nuova origine `NEED_CATALOG`.
+- `exercise`: nessuna modifica.
+- Diagrammi: `needs` nuovo e `profile` rigenerato da `metamodels/render_diagrams.py`. Il diagramma
+  `weaving` è ancora quello originale e non mostra le due aggiunte.
+
+Il resto:
+
+- Derivazione: `ApplyNeeds` e `ApplyNeedLimits` al posto di `RenderForLowVision` e
+  `SpanFromHandLimit`. Seguono bisogno → tipo → effetto senza nominare alcun bisogno; ogni link ha
+  per sorgenti lo slot del profilo e l'effetto del catalogo.
+- Validazione: nuovo `needs.evl` (il catalogo deve poter essere applicato a `exercise`);
+  `profile.evl` controlla catalogo, tipo, parametri obbligatori e valori al posto di
+  `HandSpanBounds`; `intent.evl` ha il nuovo avviso `NeedLimitExceeded`.
+- Fixture: `default.needs.xmi` con sei tipi (ipovisione, apertura della mano, attenzione breve,
+  velocità motoria ridotta, affollamento visivo, posizione fissa della mano); `giulia.profile.xmi`
+  riscritto con gli stessi valori. Il catalogo va importato prima del profilo.
+- Scheda dell'allievo: una sola sezione «Bisogni», costruita dal catalogo scelto.
+- Generazione: più vincoli di estensione sono detti al modello come la loro intersezione; il testo
+  della richiesta è nei metadati del risultato (`prompt`).
+
 ## Assistente per scrivere le regole
 
 - Nell'editor di ogni script, «Descrivi la regola»: una descrizione in italiano diventa una regola

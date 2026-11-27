@@ -1,0 +1,140 @@
+{
+  "case": "C1",
+  "staffScale": 1,
+  "requirements": [
+    {
+      "id": "C1-R1",
+      "kind": "key",
+      "text": "The exercise is in the key of C major.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Tonalità scelta dalla docente"
+      }
+    },
+    {
+      "id": "C1-R2",
+      "kind": "meter",
+      "text": "The exercise is in 4/4 time.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Metro scelto dalla docente"
+      }
+    },
+    {
+      "id": "C1-R3",
+      "kind": "bars",
+      "text": "The exercise is 8 bars long.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Numero di battute scelto dalla docente"
+      }
+    },
+    {
+      "id": "C1-R4",
+      "kind": "tempo",
+      "text": "The tempo is not faster than 80 beats per minute.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "TempoLimit"
+        ],
+        "kind": "Refinement",
+        "rationale": "Il tempo richiesto (80 bpm) è entro il tempo comodo"
+      }
+    },
+    {
+      "id": "C1-R5",
+      "kind": "containsPattern",
+      "text": "The rhythm eighth note + eighth note occurs at least once.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "StrengthenLearningPattern"
+        ],
+        "kind": "Refinement",
+        "rationale": "Il pattern '8 8' non risulta padroneggiato nel profilo: resta obbligatorio come richiesto"
+      },
+      "pattern": "8 8",
+      "minOccurrences": 1
+    },
+    {
+      "id": "C1-R6",
+      "kind": "range",
+      "text": "Every note lies between C4 and G5, both included.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "profile",
+        "label": "The learner profile",
+        "rules": [
+          "RangeFromLearner"
+        ],
+        "kind": "Derivation",
+        "rationale": "Estensione di anna: dalla nota MIDI 60 alla 79"
+      },
+      "lowestMidi": 60,
+      "highestMidi": 79
+    }
+  ],
+  "qualityGoals": [
+    {
+      "id": "C1-Q1",
+      "kind": "qualityGoal",
+      "text": "Rhythmic complexity: low.",
+      "enforced": false,
+      "strength": "not enforced",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyQualityGoals"
+        ],
+        "kind": "Refinement",
+        "rationale": "Obiettivo RHYTHMIC_COMPLEXITY LOW fissato dalla docente"
+      }
+    },
+    {
+      "id": "C1-Q2",
+      "kind": "qualityGoal",
+      "text": "Melodic complexity: low.",
+      "enforced": false,
+      "strength": "not enforced",
+      "origin": {
+        "source": "default",
+        "label": "A default of the derivation rules",
+        "rules": [
+          "FocusOtherDimensionsLow"
+        ],
+        "kind": "Derivation",
+        "rationale": "La docente non indica un obiettivo per MELODIC_COMPLEXITY: resta basso per non distrarre dal resto"
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "C2",
+  "title": "Low vision and limited hand span",
+  "learner": "Giulia plays comfortably up to 72 bpm and reads notes from C4 to G5. She is still learning the dotted-eighth + sixteenth rhythm and has not yet met its reverse (sixteenth + dotted eighth).",
+  "needs": [
+    {
+      "type": "Low vision",
+      "description": "The staff must be enlarged at least 1.5 times."
+    },
+    {
+      "type": "Hand span limit",
+      "description": "Her right hand opens comfortably up to a major sixth (9 semitones, 16 cm)."
+    }
+  ],
+  "intent": "The teacher asks for an 8-bar exercise in G major, 4/4, at 90 bpm, that practises the dotted-eighth + sixteenth rhythm.",
+  "expectation": "The tempo is lowered to what Giulia is comfortable with, the rhythm she is learning must appear several times, the rhythm she has not met is kept out, the staff is enlarged and the melody avoids leaps wider than her hand."
+}

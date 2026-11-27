@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pr:Learner xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:pr="http://music/profile" xmi:id="giulia" name="giulia" comfortableBpm="72" lowestMidi="60" highestMidi="79">
+  <skills xmi:id="skill_rhythm" level="2" confidence="0.7"/>
+  <skills xmi:id="skill_pitch" area="PITCH_READING" level="3" confidence="0.8"/>
+  <catalog href="default.needs.xmi#needs"/>
+  <needs xmi:id="need_lowvision">
+    <type href="default.needs.xmi#LowVision"/>
+    <slots xmi:id="need_lowvision_minStaffScale" value="1.5">
+      <parameter href="default.needs.xmi#LowVision_minStaffScale"/>
+    </slots>
+  </needs>
+  <needs xmi:id="need_handspan">
+    <type href="default.needs.xmi#HandSpanLimit"/>
+    <slots xmi:id="need_handspan_hand" value="RIGHT">
+      <parameter href="default.needs.xmi#HandSpanLimit_hand"/>
+    </slots>
+    <slots xmi:id="need_handspan_maxStretchSemitones" value="9">
+      <parameter href="default.needs.xmi#HandSpanLimit_maxStretchSemitones"/>
+    </slots>
+    <slots xmi:id="need_handspan_handSpanCm" value="16.0">
+      <parameter href="default.needs.xmi#HandSpanLimit_handSpanCm"/>
+    </slots>
+  </needs>
+  <patterns xmi:id="pm_quarter" expression="4"/>
+  <patterns xmi:id="pm_eighths" expression="8 8"/>
+  <patterns xmi:id="pm_dotted" expression="8. 16" status="LEARNING"/>
+  <patterns xmi:id="pm_reverse_dotted" expression="16 8." status="NOT_INTRODUCED"/>
+</pr:Learner>
