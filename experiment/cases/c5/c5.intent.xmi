@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ex:ExerciseSpec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ex="http://music/exercise" xmlns:pr="http://music/profile" xmlns:qm="http://music/quality" xmi:id="intent" key="C" meter="4/4" bars="8" requestedBpm="72">
+  <learner href="c5.profile.xmi#luca"/>
+  <qualityModel href="piano.quality.xmi#piano_quality"/>
+  <constraints xsi:type="ex:ContainsPattern" xmi:id="c_contains_eighths">
+    <pattern xmi:id="c_contains_eighths_pattern" expression="8 8"/>
+  </constraints>
+  <qualityGoals xmi:id="qg_melodic">
+    <dimension href="piano.quality.xmi#MelodicComplexity"/>
+  </qualityGoals>
+</ex:ExerciseSpec>

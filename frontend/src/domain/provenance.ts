@@ -34,7 +34,7 @@ export interface LinkInfo {
 export interface Provenance {
   weavingId: string
   derivedId: string
-  inputs: { learner?: string; teacherIntent?: string; qualityModel?: string }
+  inputs: { learner?: string; teacherIntent?: string; qualityModel?: string; needCatalog?: string }
   links: LinkInfo[]
   byElement: Record<string, LinkInfo[]>
 }
@@ -79,6 +79,7 @@ export function buildProvenance(weaving: ModelDocument, derivedId: string): Prov
       learner: root.references.learner?.[0]?.model,
       teacherIntent: root.references.teacherIntent?.[0]?.model,
       qualityModel: root.references.qualityModel?.[0]?.model,
+      needCatalog: root.references.needCatalog?.[0]?.model,
     },
     links,
     byElement,
@@ -115,7 +116,7 @@ export function provenanceDecoration(provenance: Provenance) {
     tints: (elementId: string) => elementTints(provenance, elementId),
     legend: [
       { tint: 'teacher', label: 'Chiesto dalla docente' },
-      { tint: 'derived', label: 'Derivato da profilo o regole' },
+      { tint: 'derived', label: 'Derivato da profilo, bisogni o regole' },
     ],
   }
 }
@@ -150,6 +151,7 @@ export const LINK_LABELS: Record<string, string> = {
 export const ORIGIN_LABELS: Record<string, string> = {
   TEACHER: 'Intento della docente',
   PROFILE: 'Profilo dell’allievo',
+  NEED_CATALOG: 'Catalogo dei bisogni',
   QUALITY_MODEL: 'Modello di qualità',
   RULE_DEFAULT: 'Regola predefinita',
 }

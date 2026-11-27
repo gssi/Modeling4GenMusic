@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { intervalName, isValidIntervals, maxLeap, normalizeIntervals, parseIntervals } from './interval'
+import { boundsHint, newNeed, parameterValue, readCatalog, slotOf, typeOf } from './needs'
 import { midiName } from './notes'
 import { WEAVING, buildProvenance, elementTints, untraced } from './provenance'
 import { bandIssues } from './quality'
+import { dimensionOf, freeDimensions, newDimensionName, newGoal, readQualityModel } from './qualityModel'
 import { isValidRhythm, normalizeRhythm, parseRhythm, rhythmToAbc, rhythmToAbcNotes, rhythmUnits } from './rhythm'
 
 const tokens = (expression: string) => {
@@ -165,5 +167,133 @@ describe('interval patterns', () => {
     expect(intervalName(-12)).toBe('ottava')
     expect(intervalName(16)).toBe('decima maggiore')
     expect(intervalName(20)).toBe('20 semitoni')
+  })
+})
+
+describe('needs typed by a catalog', () => {
+  const leaf = (id: string, eClass: string, attributes: Record<string, string | number | boolean>) => ({ id, eClass, attributes, contents: {}, references: {} })
+  const doc = {
+    id: 'default.needs',
+    name: 'default.needs',
+    metamodel: 'http://music/needs',
+    version: 1,
+    roots: [
+      {
+        id: 'needs',
+        eClass: 'NeedCatalog',
+        attributes: { name: 'Bisogni di base' },
+        contents: {
+          types: [
+            {
+              id: 'HandSpanLimit',
+              eClass: 'NeedType',
+              attributes: { name: 'HandSpanLimit', label: 'Limite di apertura della mano', description: 'Quanto si apre la mano.' },
+              contents: {
+                parameters: [
+                  leaf('HandSpanLimit_hand', 'ParameterDef', { name: 'hand', label: 'Mano', kind: 'HAND', defaultValue: 'RIGHT' }),
+                  leaf('HandSpanLimit_max', 'ParameterDef', { name: 'maxStretchSemitones', kind: 'INTERVAL', min: 2, max: 24, defaultValue: '12' }),
+                  leaf('HandSpanLimit_cm', 'ParameterDef', { name: 'handSpanCm', kind: 'DECIMAL', required: false, min: 1 }),
+                  // the first literal of an enum is not written in the model
+                  leaf('HandSpanLimit_count', 'ParameterDef', { name: 'count', max: 5 }),
+                ],
+              },
+              references: {},
+            },
+          ],
+        },
+        references: {},
+      },
+    ],
+  }
+  const catalog = readCatalog(doc)!
+  const type = catalog.types[0]
+  const [hand, stretch, cm, count] = type.parameters
+
+  it('reads the types and their parameters', () => {
+    expect(catalog).toMatchObject({ model: 'default.needs', id: 'needs', name: 'Bisogni di base' })
+    expect(type).toMatchObject({ id: 'HandSpanLimit', label: 'Limite di apertura della mano', description: 'Quanto si apre la mano.' })
+    expect(stretch).toEqual({ id: 'HandSpanLimit_max', name: 'maxStretchSemitones', label: 'maxStretchSemitones', kind: 'INTERVAL', required: true, min: 2, max: 24, defaultValue: '12' })
+    expect(cm).toMatchObject({ kind: 'DECIMAL', required: false, defaultValue: undefined })
+    expect(count.kind).toBe('INTEGER')
+    expect(readCatalog({ ...doc, roots: [] })).toBeNull()
+  })
+
+  it('creates a need with a slot for every default', () => {
+    const need = newNeed('need1', catalog, type)
+    expect(need.references.type).toEqual([{ model: 'default.needs', id: 'HandSpanLimit' }])
+    expect(need.contents.slots.map((s) => [s.id, s.attributes.value, s.references.parameter[0]])).toEqual([
+      ['need1_hand', 'RIGHT', { model: 'default.needs', id: 'HandSpanLimit_hand' }],
+      ['need1_maxStretchSemitones', '12', { model: 'default.needs', id: 'HandSpanLimit_max' }],
+    ])
+    expect(typeOf(need, catalog)).toBe(type)
+    expect(typeOf(need, null)).toBeUndefined()
+    expect(typeOf({ ...need, references: { type: [{ model: 'other.needs', id: 'HandSpanLimit' }] } }, catalog)).toBeUndefined()
+  })
+
+  it('takes the value of a parameter from the slot, or else from the default', () => {
+    const need = newNeed('need1', catalog, type)
+    need.contents.slots[1].attributes.value = ' 9 '
+    expect(parameterValue(need, stretch)).toBe('9')
+    expect(slotOf(need, cm)).toBeUndefined()
+    expect(parameterValue(need, cm)).toBeUndefined()
+    delete need.contents.slots[0].attributes.value
+    expect(parameterValue(need, hand)).toBe('RIGHT')
+  })
+
+  it('words the bounds of a parameter', () => {
+    expect(boundsHint(stretch)).toBe('Da 2 a 24.')
+    expect(boundsHint(cm)).toBe('Almeno 1.')
+    expect(boundsHint(count)).toBe('Al massimo 5.')
+    expect(boundsHint(hand)).toBeUndefined()
+  })
+})
+
+describe('quality goals on the dimensions of a quality model', () => {
+  const dimension = (id: string, attributes: Record<string, string | boolean>) => ({ id, eClass: 'QualityDimension', attributes, contents: {}, references: {} })
+  const doc = {
+    id: 'piano.quality',
+    name: 'piano.quality',
+    metamodel: 'http://music/quality',
+    version: 1,
+    roots: [
+      {
+        id: 'piano_quality',
+        eClass: 'QualityModel',
+        attributes: {},
+        contents: {
+          dimensions: [
+            dimension('RhythmicComplexity', { name: 'RhythmicComplexity', label: 'Complessità ritmica', metric: 'shortNoteShare', description: 'Quanto sono fitte le durate.' }),
+            dimension('Density', { name: 'Density', metric: 'noteDensity' }),
+          ],
+        },
+        references: {},
+      },
+    ],
+  }
+  const quality = readQualityModel(doc)!
+  const [rhythm, density] = quality.dimensions
+
+  it('reads the dimensions, labelled by their name when they have no label', () => {
+    expect(quality).toMatchObject({ model: 'piano.quality', id: 'piano_quality' })
+    expect(rhythm).toEqual({ id: 'RhythmicComplexity', name: 'RhythmicComplexity', label: 'Complessità ritmica', description: 'Quanto sono fitte le durate.', metric: 'shortNoteShare' })
+    expect(density.label).toBe('Density')
+    expect(readQualityModel({ ...doc, roots: [] })).toBeNull()
+  })
+
+  it('creates a goal that points to its dimension and offers each dimension once', () => {
+    const goal = newGoal('qualityGoal1', quality, rhythm, 'MEDIUM')
+    expect(goal).toMatchObject({ eClass: 'QualityGoal', attributes: { level: 'MEDIUM' }, references: { dimension: [{ model: 'piano.quality', id: 'RhythmicComplexity' }] } })
+    expect(dimensionOf(goal, quality)).toBe(rhythm)
+    expect(freeDimensions([goal], quality)).toEqual([density])
+    expect(freeDimensions([], null)).toEqual([])
+    // a goal on a dimension of another model is not one of this model
+    const foreign = { ...goal, references: { dimension: [{ model: 'other.quality', id: 'RhythmicComplexity' }] } }
+    expect(dimensionOf(foreign, quality)).toBeUndefined()
+    expect(freeDimensions([foreign], quality)).toEqual([rhythm, density])
+  })
+
+  it('names a new dimension', () => {
+    expect(newDimensionName([])).toBe('Dimension1')
+    expect(newDimensionName(['Dimension1', 'Density', 'Dimension2'])).toBe('Dimension3')
   })
 })

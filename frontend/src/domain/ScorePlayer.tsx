@@ -8,21 +8,46 @@ interface ScorePlayerProps {
   /** General MIDI program of the instrument that plays the tune. */
   program?: number
   label: string
+  /** Wording of the controls, for a page in another language; the studio uses the defaults. */
+  text?: Partial<PlayerText>
+}
+
+export interface PlayerText {
+  group: string
+  play: string
+  pause: string
+  resume: string
+  loading: string
+  restart: string
+  speed: string
+  speeds: [string, string, string]
+  error: string
+  unsupported: string
+}
+
+const TEXT: PlayerText = {
+  group: 'Ascolto dell’esercizio',
+  play: 'Ascolta',
+  pause: 'Pausa',
+  resume: 'Riprendi',
+  loading: 'Preparo l’audio…',
+  restart: 'Da capo',
+  speed: 'Velocità',
+  speeds: ['Metà velocità', 'Tre quarti', 'Velocità scritta'],
+  error: 'Non riesco a preparare l’audio: per scaricare i suoni dello strumento serve la connessione a Internet.',
+  unsupported: 'Questo browser non può riprodurre l’audio dell’esercizio.',
 }
 
 type Status = 'idle' | 'loading' | 'playing' | 'paused' | 'error'
 
-const SPEEDS = [
-  { value: 50, label: 'Metà velocità' },
-  { value: 75, label: 'Tre quarti' },
-  { value: 100, label: 'Velocità scritta' },
-]
+const SPEEDS = [50, 75, 100]
 
 /**
  * A score with playback: the notes sound while they are highlighted on the staff.
  * The instrument samples are downloaded the first time the tune is played.
  */
-export function ScorePlayer({ abc, scale = 1, program = 0, label }: ScorePlayerProps) {
+export function ScorePlayer({ abc, scale = 1, program = 0, label, text }: ScorePlayerProps) {
+  const t = { ...TEXT, ...text }
   const paper = useRef<HTMLDivElement>(null)
   const hidden = useRef<HTMLDivElement>(null)
   const controller = useRef<abcjs.SynthObjectController | null>(null)
@@ -121,31 +146,31 @@ export function ScorePlayer({ abc, scale = 1, program = 0, label }: ScorePlayerP
   return (
     <div className="score-player">
       {supported ? (
-        <div className="player-bar" role="group" aria-label="Ascolto dell’esercizio">
+        <div className="player-bar" role="group" aria-label={t.group}>
           <button type="button" className="primary" onClick={() => void toggle()} disabled={status === 'loading'}>
-            {status === 'playing' ? 'Pausa' : status === 'loading' ? 'Preparo l’audio…' : status === 'paused' ? 'Riprendi' : 'Ascolta'}
+            {status === 'playing' ? t.pause : status === 'loading' ? t.loading : status === 'paused' ? t.resume : t.play}
           </button>
           <button type="button" onClick={() => void restart()} disabled={status === 'loading' || status === 'idle'}>
-            Da capo
+            {t.restart}
           </button>
           <label className="player-speed">
-            Velocità
+            {t.speed}
             <select value={speed} onChange={(e) => void changeSpeed(Number(e.target.value))} disabled={status === 'loading'}>
-              {SPEEDS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
+              {SPEEDS.map((value, index) => (
+                <option key={value} value={value}>
+                  {t.speeds[index]}
                 </option>
               ))}
             </select>
           </label>
           {status === 'error' && (
             <span className="field-error" role="alert">
-              Non riesco a preparare l’audio: per scaricare i suoni dello strumento serve la connessione a Internet.
+              {t.error}
             </span>
           )}
         </div>
       ) : (
-        <p className="hint">Questo browser non può riprodurre l’audio dell’esercizio.</p>
+        <p className="hint">{t.unsupported}</p>
       )}
       <div className="score">
         <div ref={paper} className="abc-preview" role="img" aria-label={label} />

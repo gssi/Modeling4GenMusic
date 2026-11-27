@@ -299,6 +299,63 @@ button.link {
   box-shadow: inset 3px 0 0 var(--ink);
 }
 
+.workspace-folder {
+  margin-bottom: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.workspace-folder-head {
+  display: flex;
+  align-items: center;
+}
+
+.workspace-folder-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 0.25rem 0.25rem 0.25rem 0;
+  border: 0;
+  background: none;
+  font-weight: 700;
+  text-align: left;
+}
+
+.workspace-folder-mark {
+  flex: none;
+  width: 0.875rem;
+  color: var(--ink-soft);
+}
+
+.workspace-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-folder-count {
+  flex: none;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+
+/* What is inside a folder is set in from its name; a folder inside it is set in again. */
+.workspace-folder-body {
+  padding-left: 0.875rem;
+}
+
+.workspace-folder-body .workspace-group {
+  margin-bottom: 0.5rem;
+}
+
+.workspace-folder-body .workspace-group h3 {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
 .workspace-model {
   flex: 1;
   display: grid;
@@ -1357,6 +1414,31 @@ button.link {
   gap: 0.5rem;
 }
 
+/* A choice that can be switched on, with the value it takes next to it. */
+.form-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-view .form-check select {
+  width: auto;
+}
+
+.form-table td.is-wide {
+  width: 55%;
+}
+
+.form-view .form-table td.is-wide input[type='text'] {
+  width: 100%;
+  max-width: none;
+}
+
+.form-goal-note {
+  flex-basis: 100%;
+}
+
 .form-warnings {
   display: grid;
   gap: 0.25rem;
@@ -1507,13 +1589,18 @@ button.link {
   font-weight: 700;
 }
 
-.pane-role select {
+.pane-role select,
+.pane-role input {
   min-height: 2rem;
   padding: 0.125rem 0.5rem;
   border: 1px solid #7a8294;
   border-radius: 6px;
   background: var(--paper);
   font-weight: 400;
+}
+
+.pane-role input {
+  width: 11rem;
 }
 
 .generator-choice {

@@ -1,0 +1,17 @@
+{
+  "id": "C3",
+  "title": "Short attention span and reduced motor speed",
+  "learner": "Marco reads notes from C4 to C5 and has mastered quarter notes and half notes. In general he is comfortable up to 90 bpm.",
+  "needs": [
+    {
+      "type": "Short attention span",
+      "description": "An exercise must not be longer than 4 bars."
+    },
+    {
+      "type": "Reduced motor speed",
+      "description": "His movements are slower: the tempo must not exceed 60 bpm."
+    }
+  ],
+  "intent": "The teacher asks for an 8-bar exercise in C major, 4/4, at 100 bpm, that practises pairs of eighth notes.",
+  "expectation": "Both requests exceed Marco's limits: the exercise should be shortened to 4 bars and slowed down to 60 bpm."
+}

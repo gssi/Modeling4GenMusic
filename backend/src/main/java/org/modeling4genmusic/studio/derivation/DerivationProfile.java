@@ -16,13 +16,24 @@ public record DerivationProfile(String script, List<Input> inputs, List<Output> 
         Map<String, String> tools) {
 
     /**
+     * An input is either named by the request ({@code parameter}) or reached from another input
+     * ({@code via} and {@code reference}); the second kind may be missing, and the script then sees an
+     * empty model.
+     *
      * @param alias     name of the model inside the script
      * @param metamodel nsURI the model must conform to
-     * @param parameter request field that carries the model id
+     * @param parameter request field that carries the model id (null for a reached input)
      * @param primary   the input the outputs are named after; its residual diagnostics are returned
      * @param validated whether errors in this model block the derivation
+     * @param via       alias of the input this one is reached from (null for a requested input)
+     * @param reference feature of the root elements of {@code via} whose target lives in this model
      */
-    public record Input(String alias, String metamodel, String parameter, boolean primary, boolean validated) {
+    public record Input(String alias, String metamodel, String parameter, boolean primary, boolean validated,
+            String via, String reference) {
+
+        public boolean reached() {
+            return via != null;
+        }
     }
 
     /**

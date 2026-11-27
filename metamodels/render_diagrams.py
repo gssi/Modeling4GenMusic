@@ -85,6 +85,8 @@ class Box:
             'class': ('#FFFFFF', '#EEF1F7', '#3A4A66', ''),
             'enum': ('#FFFDF4', '#FBF0CF', '#8A6A12', ''),
             'external': ('#F4F4F2', '#E6E6E2', '#8A8A85', ' stroke-dasharray="5 3"'),
+            'type': ('#FFFDF4', '#FBF0CF', '#8A6A12', ''),
+            'instance': ('#F6FBF7', '#DDEFE2', '#2F6B45', ''),
         }[self.kind]
         italic = 'italic' if self.stereotype == 'abstract' else 'normal'
         out = [f'<rect x="{self.x}" y="{self.y}" width="{self.w:.1f}" height="{self.h}" fill="{fill}" stroke="{stroke}" stroke-width="1.3"{dash}/>',
@@ -138,14 +140,17 @@ def reference(route, label, label_at):
     return line(route) + arrow(route) + text(*label_at, label, 12.5, fill=LINE)
 
 
-def inheritance(parent, children, bus_y):
-    """Hollow triangle under the parent and a horizontal bus to the top of every subclass."""
+def inheritance(parent, children, bus_y, at=None):
+    """Hollow triangle under the parent and a horizontal bus to the top of every subclass. `at` moves
+    the point where the line reaches a subclass, for one that has two parents."""
+    at = at or {}
     x, y = parent.cx, parent.bottom
     out = [f'<polygon points="{x:.1f},{y} {x - 9:.1f},{y + 14} {x + 9:.1f},{y + 14}" fill="#FFFFFF" stroke="{LINE}" stroke-width="1.3"/>',
            line([(x, y + 14), (x, bus_y)])]
-    xs = [c.cx for c in children] + [x]
+    ends = [(at.get(c.title, c.cx), c) for c in children]
+    xs = [end for end, _ in ends] + [x]
     out.append(line([(min(xs), bus_y), (max(xs), bus_y)]))
-    out += [line([(c.cx, bus_y), (c.cx, c.y)]) for c in children]
+    out += [line([(end, bus_y), (end, c.y)]) for end, c in ends]
     return ''.join(out)
 
 
@@ -162,10 +167,10 @@ def class_box(package, name, x, y):
     return Box(x, y, name, package.attributes(name), 'abstract' if package.is_abstract(name) else None)
 
 
-def write(package, boxes, connectors, origin):
+def write(package, boxes, connectors, origin, lowest=0):
     ox, oy = origin
     width = max(b.right for b in boxes) + 40 - ox
-    height = max(b.bottom for b in boxes) + 37 - oy
+    height = max(lowest, max(b.bottom for b in boxes)) + 37 - oy
     body = (f'<rect x="{ox}" y="{oy}" width="{width:.1f}" height="{height:.1f}" fill="#FFFFFF"/>'
             + text(ox + 70, -14, f'Metamodello {package.name} ({package.ns_uri})', 20, weight='bold')
             + ''.join(connectors) + ''.join(b.svg() for b in boxes))
@@ -180,8 +185,10 @@ def profile():
     learner = class_box(p, 'Learner', 40, 150)
     skill = class_box(p, 'Skill', 420, 20)
     need = class_box(p, 'Need', 420, 185)
-    low_vision = class_box(p, 'LowVision', 420, 300)
-    hand_span = class_box(p, 'HandSpanLimit', low_vision.right + 36, 300)
+    slot = class_box(p, 'Slot', 660, 170.5)
+    need_type = Box(400, 300, 'NeedType', (), 'needs', 'external')
+    parameter = Box(650, 300, 'ParameterDef', (), 'needs', 'external')
+    catalog = Box(60, 360, 'NeedCatalog', (), 'needs', 'external')
     pattern = class_box(p, 'PatternMastery', 420, 430)
     via = 330
     connectors = [
@@ -190,10 +197,44 @@ def profile():
         containment((learner.right, need.cy), 'right', [(need.x, need.cy)], 'needs  0..*', (via + 8, need.cy - 6)),
         containment((learner.right, learner.bottom - 16), 'right',
                     [(via, learner.bottom - 16), (via, pattern.cy), (pattern.x, pattern.cy)], 'patterns  0..*', (via + 8, pattern.cy - 6)),
-        inheritance(need, [low_vision, hand_span], 268),
+        containment((need.right, need.cy), 'right', [(slot.x, need.cy)], 'slots  0..*', (need.right + 22, need.cy - 6)),
+        reference([(need.cx, need.bottom), (need.cx, need_type.y)], 'type  1', (need.cx + 8, need.bottom + 30)),
+        reference([(slot.cx, slot.bottom), (slot.cx, parameter.y)], 'parameter  1', (slot.cx + 8, slot.bottom + 30)),
+        reference([(learner.x + 60, learner.bottom), (learner.x + 60, catalog.y)], 'catalog  0..1', (learner.x + 68, learner.bottom + 30)),
     ]
-    classes = [learner, skill, need, low_vision, hand_span, pattern]
+    classes = [learner, skill, need, slot, need_type, parameter, catalog, pattern]
     write(p, classes + enum_column(p, max(b.right for b in classes) + 70, 20), connectors, (-30, -60))
+
+
+def needs():
+    p = Package('needs')
+    catalog = class_box(p, 'NeedCatalog', 40, 64)
+    need_type = class_box(p, 'NeedType', 320, 40)
+    parameter = class_box(p, 'ParameterDef', 660, 20)
+    effect = class_box(p, 'Effect', 320, 250)
+    value = class_box(p, 'Value', 660, 250)
+    constraint_effect = class_box(p, 'ConstraintEffect', 60, 420)
+    spec_effect = class_box(p, 'SpecEffect', 400, 420)
+    binding = class_box(p, 'Binding', 700, 420)
+    below = max(constraint_effect.bottom, spec_effect.bottom, binding.bottom) + 40
+    connectors = [
+        containment((catalog.right, need_type.cy), 'right', [(need_type.x, need_type.cy)], 'types  0..*',
+                    (catalog.right + 22, need_type.cy - 6)),
+        containment((need_type.right, need_type.cy), 'right', [(parameter.x, need_type.cy)], 'parameters  0..*',
+                    (need_type.right + 22, need_type.cy - 6)),
+        containment((effect.cx, need_type.bottom), 'down', [(effect.cx, effect.y)], 'effects  0..*',
+                    (effect.cx + 8, need_type.bottom + 40)),
+        reference([(value.cx, value.y), (value.cx, parameter.bottom)], 'parameter  0..1', (value.cx + 8, value.y - 22)),
+        inheritance(effect, [constraint_effect, spec_effect], 370, {'SpecEffect': spec_effect.cx - 30}),
+        inheritance(value, [spec_effect, binding], 390, {'SpecEffect': spec_effect.cx + 30}),
+        containment((constraint_effect.cx, constraint_effect.bottom), 'down',
+                    [(constraint_effect.cx, below), (binding.cx, below), (binding.cx, binding.bottom)], 'bindings  0..*',
+                    (constraint_effect.cx + 8, below - 8)),
+    ]
+    classes = [catalog, need_type, parameter, effect, value, constraint_effect, spec_effect, binding]
+    boxes = classes + enum_column(p, max(b.right for b in classes) + 70, 20)
+    # `lowest`: the route of `bindings` runs under the boxes
+    write(p, boxes, connectors, (-10, -60), lowest=below)
 
 
 def exercise():
@@ -209,6 +250,8 @@ def exercise():
     contains, excludes = subclasses[0], subclasses[1]
     pattern = class_box(p, 'Pattern', 400, 450)
     external = Box(60, 520, 'Learner', (), 'profile', 'external')
+    dimension = Box(60, 400, 'QualityDimension', (), 'quality', 'external')
+    quality_model = Box(60, 610, 'QualityModel', (), 'quality', 'external')
     hand = Box(subclasses[-1].x, 400, 'Hand', (), 'profile', 'external')
     span = subclasses[-1]
     connectors = [
@@ -221,15 +264,69 @@ def exercise():
                     'pattern  1', (excludes.cx + 8, 370)),
         containment((spec.x + 103, spec.bottom), 'down', [(spec.x + 103, goal.y)], 'qualityGoals  0..*', (spec.x + 111, 243)),
         reference([(spec.x, spec.y + 40), (30, spec.y + 40), (30, external.cy), (external.x, external.cy)], 'learner  0..1', (36, external.cy - 30)),
+        reference([(spec.x, spec.y + 70), (12, spec.y + 70), (12, quality_model.cy), (quality_model.x, quality_model.cy)],
+                  'qualityModel  0..1', (18, quality_model.cy + 34)),
+        reference([(goal.x + 60, goal.bottom), (goal.x + 60, dimension.y)], 'dimension  1', (goal.x + 68, goal.bottom + 30)),
         # The type of an attribute of another metamodel, shown as a dependency on that classifier.
         f'<polyline points="{span.x + 40:.1f},{span.bottom} {span.x + 40:.1f},{hand.y}" fill="none" stroke="{LINE}" stroke-width="1.3" stroke-dasharray="5 3"/>',
         arrow([(span.x + 40, span.bottom), (span.x + 40, hand.y)]),
         text(span.x + 48, span.bottom + 30, 'tipo di hand', 12.5, fill=LINE),
     ]
-    classes = [spec, constraint, goal, *subclasses, pattern, external, hand]
+    classes = [spec, constraint, goal, *subclasses, pattern, external, dimension, quality_model, hand]
+    write(p, classes + enum_column(p, max(b.right for b in classes) + 70, 20), connectors, (-10, -60))
+
+
+def quality():
+    p = Package('quality')
+    model = class_box(p, 'QualityModel', 40, 88)
+    dimension = class_box(p, 'QualityDimension', 360, 20)
+    band = class_box(p, 'Band', 760, 62)
+    connectors = [
+        containment((model.right, model.cy), 'right', [(dimension.x, model.cy)], 'dimensions  0..*', (model.right + 22, model.cy - 6)),
+        containment((dimension.right, band.cy), 'right', [(band.x, band.cy)], 'bands  0..*', (dimension.right + 22, band.cy - 6)),
+    ]
+    classes = [model, dimension, band]
+    write(p, classes + enum_column(p, max(b.right for b in classes) + 70, 20), connectors, (-10, -60))
+
+
+def weaving():
+    p = Package('weaving')
+    root = class_box(p, 'DerivationWeaving', 60, 69)
+    link = class_box(p, 'Link', 420, 40)
+    subclasses, x = [], 300
+    for name in ['Derivation', 'Refinement', 'ConflictFix', 'Resolution']:
+        box = class_box(p, name, x, 300)
+        subclasses.append(box)
+        x = box.right + 34
+    column = subclasses[-1].right + 90
+    source = class_box(p, 'SourceEnd', column, 50)
+    anything = Box(0, 330, 'EObject', (), 'ecore', 'external')
+    anything.x = source.cx - anything.w / 2
+    # The models a weaving ties together, one under the other, reached by a common line.
+    ends = [('Learner', 'profile', 'learner  1'), ('ExerciseSpec', 'exercise', 'teacherIntent  0..1,  derivedSpec  1'),
+            ('QualityModel', 'quality', 'qualityModel  0..1'), ('NeedCatalog', 'needs', 'needCatalog  0..1')]
+    externals, connectors, y = [], [], 300
+    for name, package, label in ends:
+        box = Box(60, y, name, (), package, 'external')
+        externals.append(box)
+        connectors.append(reference([(root.x, root.cy), (30, root.cy), (30, box.cy), (box.x, box.cy)], label, (box.x, box.bottom + 16)))
+        y = box.bottom + 44
+    turn = column - 40
+    connectors += [
+        containment((root.right, root.cy), 'right', [(link.x, root.cy)], 'links  0..*', (root.right + 22, root.cy - 6)),
+        containment((link.right, source.cy), 'right', [(source.x, source.cy)], 'sources  1..*', (link.right + 22, source.cy - 6)),
+        inheritance(link, subclasses, 250),
+        reference([(link.right, link.bottom - 12), (turn, link.bottom - 12), (turn, anything.cy), (anything.x, anything.cy)],
+                  'target  1', (link.right + 22, link.bottom - 18)),
+        reference([(source.cx, source.bottom), (source.cx, anything.y)], 'element  1', (source.cx + 8, source.bottom + 34)),
+    ]
+    classes = [root, link, *subclasses, source, anything, *externals]
     write(p, classes + enum_column(p, max(b.right for b in classes) + 70, 20), connectors, (-10, -60))
 
 
 if __name__ == '__main__':
     profile()
+    needs()
+    quality()
+    weaving()
     exercise()

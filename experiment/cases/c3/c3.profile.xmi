@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pr:Learner xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:pr="http://music/profile" xmi:id="marco" name="marco" comfortableBpm="90" lowestMidi="60" highestMidi="72">
+  <skills xmi:id="skill_rhythm" level="2" confidence="0.7"/>
+  <skills xmi:id="skill_pitch" area="PITCH_READING" level="2" confidence="0.7"/>
+  <catalog href="default.needs.xmi#needs"/>
+  <needs xmi:id="need_attention">
+    <type href="default.needs.xmi#ShortAttentionSpan"/>
+    <slots xmi:id="need_attention_maxBars" value="4">
+      <parameter href="default.needs.xmi#ShortAttentionSpan_maxBars"/>
+    </slots>
+  </needs>
+  <needs xmi:id="need_speed">
+    <type href="default.needs.xmi#ReducedMotorSpeed"/>
+    <slots xmi:id="need_speed_maxBpm" value="60">
+      <parameter href="default.needs.xmi#ReducedMotorSpeed_maxBpm"/>
+    </slots>
+  </needs>
+  <patterns xmi:id="pm_quarter" expression="4"/>
+  <patterns xmi:id="pm_half" expression="2"/>
+</pr:Learner>

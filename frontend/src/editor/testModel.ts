@@ -32,14 +32,14 @@ const profile: MetamodelDescriptor = {
       ],
     },
     { name: 'Skill', abstract: false, supertypes: [], attributes: [attr('area', 'enum'), attr('level', 'int')], references: [] },
-    { name: 'Need', abstract: true, supertypes: [], attributes: [], references: [] },
     {
-      name: 'LowVision',
+      name: 'Need',
       abstract: false,
-      supertypes: [{ metamodel: PROFILE, name: 'Need' }],
-      attributes: [attr('minStaffScale', 'double')],
-      references: [],
+      supertypes: [],
+      attributes: [],
+      references: [{ name: 'slots', target: { metamodel: PROFILE, name: 'Slot' }, containment: true, lower: 0, upper: -1 }],
     },
+    { name: 'Slot', abstract: false, supertypes: [], attributes: [attr('value')], references: [] },
     { name: 'PatternMastery', abstract: false, supertypes: [], attributes: [attr('expression'), attr('status', 'enum')], references: [] },
   ],
 }
@@ -101,7 +101,15 @@ export const giuliaProfile: ModelObject[] = [
         leaf('skill_rhythm', 'Skill', { area: 'RHYTHM', level: 2, confidence: 0.7 }),
         leaf('skill_pitch', 'Skill', { area: 'PITCH_READING', level: 3, confidence: 0.8 }),
       ],
-      needs: [leaf('need_lowvision', 'LowVision', { minStaffScale: 1.5 })],
+      needs: [
+        {
+          id: 'need_lowvision',
+          eClass: 'Need',
+          attributes: {},
+          contents: { slots: [leaf('need_lowvision_minStaffScale', 'Slot', { value: '1.5' })] },
+          references: {},
+        },
+      ],
       patterns: [
         leaf('pm_quarter', 'PatternMastery', { expression: '4', status: 'MASTERED' }),
         leaf('pm_eighths', 'PatternMastery', { expression: '8 8', status: 'MASTERED' }),

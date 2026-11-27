@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ex:ExerciseSpec xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ex="http://music/exercise" xmi:id="spec" key="C" meter="4/4" bars="8" maxBpm="80" requestedBpm="80">
+  <learner href="c1.profile.xmi#anna"/>
+  <qualityModel href="piano.quality.xmi#piano_quality"/>
+  <constraints xsi:type="ex:ContainsPattern" xmi:id="c_contains_1">
+    <pattern xmi:id="c_contains_1_pattern" expression="8 8"/>
+  </constraints>
+  <constraints xsi:type="ex:RangeConstraint" xmi:id="c_range_1" lowestMidi="60" highestMidi="79"/>
+  <qualityGoals xmi:id="qg_rhythmic_complexity">
+    <dimension href="piano.quality.xmi#RhythmicComplexity"/>
+  </qualityGoals>
+  <qualityGoals xmi:id="qg_melodic_complexity">
+    <dimension href="piano.quality.xmi#MelodicComplexity"/>
+  </qualityGoals>
+</ex:ExerciseSpec>

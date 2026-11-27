@@ -30,6 +30,7 @@ backend/      Spring Boot: modelli EMF, persistenza, validazione (regole in src/
 frontend/     React + Vite: editor generico in src/editor/, parti di dominio in src/domain/
 fixtures/     modelli XMI di esempio (Giulia)
 workspace/    modelli creati a runtime, con la loro cronologia (fuori da git)
+experiment/   casi e risultati della valutazione con gli esperti, pubblicati come sito statico
 docs/         changelog e ADR
 ```
 
@@ -88,8 +89,23 @@ all'indirizzo `host.docker.internal:11434`.
 Ogni modello `id` di un workspace è fatto di tre file in `workspace/<workspace>/`:
 
 - `id.xmi`: il modello, con `xmi:id` stabili; i riferimenti ad altri modelli sono href relativi;
-- `id.meta.json`: nome, metamodello, versione (lock ottimistico) e ruolo;
+- `id.meta.json`: nome, metamodello, versione (lock ottimistico), ruolo e cartella;
 - `id.layout.json`: posizioni dei nodi nel diagramma.
+
+### Cartelle
+
+I modelli si possono raccogliere in cartelle, anche una dentro l'altra (`Classe 3/Giulia`). Il
+pannello «Modelli» le mostra come sezioni che si aprono e chiudono; dentro ciascuna i modelli
+restano raggruppati per tipo. Un modello si sposta dal campo «Cartella» della sua barra, senza
+salvarlo; «+» e «↥» dentro una cartella creano o importano lì. Ciò che si deriva da un intento
+finisce nella cartella dell'intento.
+
+Una cartella è un'etichetta del modello, scritta in `id.meta.json`: sul disco i file restano tutti
+uno accanto all'altro e gli identificativi non cambiano, quindi spostare un modello non tocca i
+riferimenti di chi lo cita, né la sua cronologia. Una cartella esiste finché contiene un modello.
+
+API: `PUT /api/models/{id}/folder` con `{"folder": "Classe 3/Giulia"}` (vuoto per toglierlo da ogni
+cartella); `folder` è accettato anche da `POST /api/models` e `POST /api/models/import`.
 
 ### Versioni
 
@@ -184,13 +200,55 @@ API: `GET /api/derivations/script`, `POST /api/derivations/script/check`,
 
 ## Dal profilo all'esercizio
 
-1. Crea o importa un profilo, un intento didattico e un modello di qualità. Ogni modello si
-   modifica come diagramma oppure, con il selettore «Scheda», come modulo.
-2. «Deriva un esercizio» fa scegliere i tre modelli, mostra i controlli sull'intento con le
+1. Crea o importa un catalogo dei bisogni, un profilo, un intento didattico e un modello di
+   qualità. Ogni modello si modifica come diagramma oppure, con il selettore «Scheda», come modulo.
+2. «Deriva un esercizio» fa scegliere intento e profilo (il modello di qualità è quello
+   dell'intento), mostra i controlli sull'intento con le
    correzioni proposte e produce la specifica dell'esercizio e la traccia di derivazione.
 3. Nella specifica derivata il blu indica ciò che ha chiesto la docente, il verde ciò che viene
-   dal profilo o dalle regole; selezionando un elemento si legge il perché e si aprono le sorgenti.
+   dal profilo, dai bisogni o dalle regole; selezionando un elemento si legge il perché e si
+   aprono le sorgenti.
 4. La vista «Esercizio» della specifica chiede un esercizio e lo controlla. Può scriverlo un
    brano di prova fisso oppure un modello musicale locale servito da Ollama (vedi sotto).
 
-Per caricare l'esempio, importa dall'editor i tre file di `fixtures/giulia/` con «Importa XMI».
+Per caricare l'esempio, importa dall'editor i file di `fixtures/giulia/` con «Importa XMI»,
+partendo da `default.needs.xmi`: il profilo cita il catalogo dei bisogni.
+
+## Obiettivi di qualità
+
+Quanto deve essere impegnativo un esercizio si dice per dimensioni (complessità ritmica, melodica,
+densità…). Le dimensioni non sono fisse: stanno nel modello di qualità
+(`fixtures/giulia/piano.quality.xmi`). Ognuna dichiara la metrica con cui si misura e, per ogni
+livello, l'intervallo della metrica e la frase da dire al modello musicale. Nell'intento si sceglie
+il modello di qualità e si fissa un livello per le dimensioni che interessano; per le altre vale
+ciò che il modello prevede.
+
+Per aggiungere una dimensione apri il modello di qualità con «Scheda», premi «Aggiungi dimensione
+di qualità», scegli la metrica e scrivi le tre bande. Le metriche disponibili sono quelle che lo
+studio sa calcolare (`GET /api/generations/metrics`): quota di note brevi, varietà delle durate,
+ampiezza media dei salti, estensione usata, note per pulsazione. Una metrica nuova richiede
+codice (`Metrics.java`).
+
+Sull'esercizio generato ogni obiettivo è misurato e riportato tra i controlli come osservazione:
+non rende l'esercizio non valido. Metriche e soglie sono una prima proposta, da calibrare. Le
+scelte sono in [docs/adr/0007-quality-dimensions-as-data.md](docs/adr/0007-quality-dimensions-as-data.md).
+
+I diagrammi `metamodels/img/levels-needs` e `levels-quality` mostrano, per bisogni e qualità, i
+tre livelli: classi del metamodello, tipi definiti nei modelli, istanze che li usano.
+
+## Bisogni dell'allievo
+
+I bisogni non sono classi del metamodello: sono tipi descritti in un modello, il catalogo
+(`fixtures/giulia/default.needs.xmi`, metamodello `needs`). Ogni tipo dichiara i suoi parametri e
+i suoi effetti sulla specifica: quale vincolo creare e con quali valori, oppure quale attributo
+limitare (battute, tempo). Nel profilo un bisogno indica il suo tipo e ne valorizza i parametri.
+
+Per aggiungere un tipo di bisogno apri il catalogo nel diagramma, crea un `NeedType` con i suoi
+`ParameterDef` e almeno un effetto, e salva: la scheda dell'allievo lo propone subito e la
+derivazione lo applica, senza modifiche al codice. Il catalogo è controllato al salvataggio: un
+effetto che nomina una classe o un attributo che il metamodello `exercise` non ha è un errore.
+
+Il limite è il vocabolario dei vincoli: un bisogno che non si esprime con quelli esistenti
+(pattern richiesto o escluso, estensione, apertura della mano, resa grafica, battute, tempo)
+richiede di estendere `exercise`, il generatore e i controlli. Le scelte sono in
+[docs/adr/0006-multi-level-needs.md](docs/adr/0006-multi-level-needs.md).

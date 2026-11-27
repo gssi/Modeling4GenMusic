@@ -18,7 +18,7 @@ class RuleCatalogTest {
         assertThat(set.problems()).isEmpty();
         assertThat(set.exceptRoles()).containsExactly("derived");
         assertThat(set.contexts()).extracting(RuleSet.Context::type).containsExactly("T!ExerciseSpec",
-                "T!ContainsPattern", "T!ContainsPattern", "T!QualityGoal");
+                "T!ContainsPattern", "T!ContainsPattern", "T!ExerciseSpec", "T!QualityGoal");
 
         RuleSet.Rule tempo = set.contexts().get(0).rules().get(0);
         assertThat(tempo.name()).isEqualTo("TempoAboveComfort");
@@ -30,7 +30,7 @@ class RuleCatalogTest {
         assertThat(tempo.fixes().get(0).title()).isEqualTo("\"Limita il tempo a \" + self.learner.comfortableBpm + \" bpm\"");
         assertThat(tempo.fixes().get(0).body()).isEqualTo("self.maxBpm = self.learner.comfortableBpm;");
         assertThat(tempo.source()).startsWith("critique TempoAboveComfort {").endsWith("}");
-        assertThat(tempo.line()).isEqualTo(6);
+        assertThat(tempo.line()).isEqualTo(7);
 
         RuleSet.Rule conflict = set.contexts().get(1).rules().get(0);
         assertThat(conflict.name()).isEqualTo("ContainsExcludesConflict");

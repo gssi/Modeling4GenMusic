@@ -19,6 +19,7 @@ interface MetamodelWording {
 
 const WORDING: Record<string, MetamodelWording> = {
   'http://music/profile': { plural: 'Profili degli allievi', create: 'Nuovo profilo' },
+  'http://music/needs': { plural: 'Cataloghi dei bisogni', create: 'Nuovo catalogo dei bisogni' },
   'http://music/exercise': {
     plural: 'Esercizi',
     create: 'Nuovo esercizio',
@@ -33,6 +34,7 @@ const WORDING: Record<string, MetamodelWording> = {
 
 const RULE_EXAMPLES: Record<string, string> = {
   'profile.evl': 'avvisa se il tempo comodo dell’allievo è sotto i 40 bpm',
+  'needs.evl': 'avvisa se un tipo di bisogno non ha una descrizione',
   'intent.evl': 'avvisa se l’esercizio ha più di 16 battute',
   'quality.evl': 'avvisa se un modello di qualità non ha nessun binding',
   'weaving.evl': 'avvisa se un link non ha una motivazione scritta',

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pr:Learner xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:pr="http://music/profile" xmi:id="luca" name="luca" comfortableBpm="84" lowestMidi="60" highestMidi="79">
+  <skills xmi:id="skill_rhythm" level="2" confidence="0.7"/>
+  <skills xmi:id="skill_pitch" area="PITCH_READING" level="2" confidence="0.7"/>
+  <catalog href="default.needs.xmi#needs"/>
+  <needs xmi:id="need_position">
+    <type href="default.needs.xmi#FiveFingerPosition"/>
+    <slots xmi:id="need_position_lowestMidi" value="60">
+      <parameter href="default.needs.xmi#FiveFingerPosition_lowestMidi"/>
+    </slots>
+    <slots xmi:id="need_position_highestMidi" value="67">
+      <parameter href="default.needs.xmi#FiveFingerPosition_highestMidi"/>
+    </slots>
+  </needs>
+  <needs xmi:id="need_handspan">
+    <type href="default.needs.xmi#HandSpanLimit"/>
+    <slots xmi:id="need_handspan_hand" value="RIGHT">
+      <parameter href="default.needs.xmi#HandSpanLimit_hand"/>
+    </slots>
+    <slots xmi:id="need_handspan_maxStretchSemitones" value="7">
+      <parameter href="default.needs.xmi#HandSpanLimit_maxStretchSemitones"/>
+    </slots>
+  </needs>
+  <patterns xmi:id="pm_quarter" expression="4"/>
+  <patterns xmi:id="pm_half" expression="2"/>
+</pr:Learner>

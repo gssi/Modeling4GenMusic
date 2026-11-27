@@ -1,0 +1,222 @@
+{
+  "case": "C2",
+  "staffScale": 1.5,
+  "requirements": [
+    {
+      "id": "C2-R1",
+      "kind": "key",
+      "text": "The exercise is in the key of G major.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Tonalità scelta dalla docente"
+      }
+    },
+    {
+      "id": "C2-R2",
+      "kind": "meter",
+      "text": "The exercise is in 4/4 time.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Metro scelto dalla docente"
+      }
+    },
+    {
+      "id": "C2-R3",
+      "kind": "bars",
+      "text": "The exercise is 8 bars long.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Numero di battute scelto dalla docente"
+      }
+    },
+    {
+      "id": "C2-R4",
+      "kind": "tempo",
+      "text": "The tempo is not faster than 72 beats per minute.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher+profile",
+        "label": "The teacher's request, limited by the learner profile",
+        "rules": [
+          "TempoLimit"
+        ],
+        "kind": "ConflictFix",
+        "rationale": "Il tempo richiesto (90 bpm) supera il tempo comodo di giulia: limitato a 72 bpm",
+        "originalValue": "90",
+        "newValue": "72"
+      }
+    },
+    {
+      "id": "C2-R5",
+      "kind": "containsPattern",
+      "text": "The rhythm dotted eighth note + sixteenth note occurs at least 3 times.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher+profile",
+        "label": "The teacher's request, weighted by the learner profile",
+        "rules": [
+          "StrengthenLearningPattern"
+        ],
+        "kind": "Refinement",
+        "rationale": "Il pattern '8. 16' è in fase di apprendimento: diventa obbligatorio, con almeno 3 occorrenze"
+      },
+      "pattern": "8. 16",
+      "minOccurrences": 3
+    },
+    {
+      "id": "C2-R6",
+      "kind": "excludesPattern",
+      "text": "The rhythm sixteenth note + dotted eighth note never occurs.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "profile",
+        "label": "The learner profile",
+        "rules": [
+          "ExcludeNotIntroduced"
+        ],
+        "kind": "Derivation",
+        "rationale": "Il pattern '16 8.' non è ancora stato introdotto a giulia: viene escluso"
+      },
+      "pattern": "16 8."
+    },
+    {
+      "id": "C2-R7",
+      "kind": "range",
+      "text": "Every note lies between C4 and G5, both included.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "profile",
+        "label": "The learner profile",
+        "rules": [
+          "RangeFromLearner"
+        ],
+        "kind": "Derivation",
+        "rationale": "Estensione di giulia: dalla nota MIDI 60 alla 79"
+      },
+      "lowestMidi": 60,
+      "highestMidi": 79
+    },
+    {
+      "id": "C2-R8",
+      "kind": "render",
+      "text": "The staff is displayed at least 1.5 times its normal size.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Low vision",
+        "label": "The learner's need “Low vision”",
+        "rules": [
+          "ApplyNeeds"
+        ],
+        "kind": "Derivation",
+        "rationale": "Ipovisione: il pentagramma va ingrandito almeno di 1.5 volte"
+      },
+      "staffScale": 1.5,
+      "appliedBy": "display"
+    },
+    {
+      "id": "C2-R9",
+      "kind": "handSpan",
+      "text": "No two notes played together by the right hand are further apart than 9 semitones (major sixth).",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Hand span limit",
+        "label": "The learner's need “Hand span limit”",
+        "rules": [
+          "ApplyNeeds"
+        ],
+        "kind": "Derivation",
+        "rationale": "Limite di apertura della mano destra: massimo 9 semitoni (sesta maggiore)"
+      },
+      "semitones": 9
+    },
+    {
+      "id": "C2-R10",
+      "kind": "positionChanges",
+      "text": "No melodic leap between two consecutive notes is wider than 9 semitones (major sixth), so the right hand never has to change position.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Hand span limit",
+        "label": "The learner's need “Hand span limit”",
+        "rules": [
+          "ApplyNeeds"
+        ],
+        "kind": "Derivation",
+        "rationale": "Limite di apertura della mano destra: massimo 9 semitoni (sesta maggiore)"
+      },
+      "semitones": 9
+    },
+    {
+      "id": "C2-R11",
+      "kind": "qualityGoal",
+      "text": "Rhythmic complexity is medium: “Mix quarter notes with eighth notes”.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyQualityGoals"
+        ],
+        "kind": "Refinement",
+        "rationale": "Obiettivo Complessità ritmica MEDIUM fissato dalla docente"
+      },
+      "dimension": "RhythmicComplexity",
+      "level": "MEDIUM",
+      "metric": "shortNoteShare",
+      "min": 0.3,
+      "max": 0.6
+    },
+    {
+      "id": "C2-R12",
+      "kind": "qualityGoal",
+      "text": "Melodic complexity is low: “Move mostly by step”.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "qualityModel",
+        "label": "A default of the quality model",
+        "rules": [
+          "ApplyImplicitGoals"
+        ],
+        "kind": "Derivation",
+        "rationale": "La docente non indica un obiettivo per Complessità melodica: vale il livello LOW previsto dal modello di qualità"
+      },
+      "dimension": "MelodicComplexity",
+      "level": "LOW",
+      "metric": "meanLeap",
+      "min": 0,
+      "max": 0.35
+    }
+  ]
+}

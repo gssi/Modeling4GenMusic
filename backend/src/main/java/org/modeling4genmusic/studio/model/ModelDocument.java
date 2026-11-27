@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
  * {@code contents} and {@code references} always map a feature name to a list, whatever its upper bound.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record ModelDocument(String id, String name, String metamodel, String role, Integer version,
+public record ModelDocument(String id, String name, String metamodel, String role, String folder, Integer version,
         List<ObjectNode> roots) {
 
     public record ObjectNode(String id, String eClass, Map<String, Object> attributes,
@@ -29,6 +29,6 @@ public record ModelDocument(String id, String name, String metamodel, String rol
     }
 
     public ModelDocument withRoots(List<ObjectNode> newRoots) {
-        return new ModelDocument(id, name, metamodel, role, version, newRoots);
+        return new ModelDocument(id, name, metamodel, role, folder, version, newRoots);
     }
 }

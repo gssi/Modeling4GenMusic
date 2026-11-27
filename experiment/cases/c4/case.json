@@ -1,0 +1,13 @@
+{
+  "id": "C4",
+  "title": "Visual crowding",
+  "learner": "Sara plays comfortably up to 80 bpm and reads notes from C4 to F5. She has mastered quarter notes, half notes and pairs of eighth notes.",
+  "needs": [
+    {
+      "type": "Visual crowding",
+      "description": "Dense notation blurs together: the staff must be enlarged at least 1.8 times and groups of sixteenth notes are avoided."
+    }
+  ],
+  "intent": "The teacher asks for an 8-bar exercise in F major, 3/4, at 76 bpm, with pairs of eighth notes and a medium rhythmic complexity.",
+  "expectation": "The staff is enlarged and no pair of sixteenth notes appears, even though the teacher asks for some rhythmic variety. Eighth notes are a preference here, because Sara already masters them."
+}

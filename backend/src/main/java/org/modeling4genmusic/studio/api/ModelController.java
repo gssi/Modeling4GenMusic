@@ -38,7 +38,7 @@ public class ModelController {
         this.store = store;
     }
 
-    public record CreateRequest(String metamodel, String name, String role) {
+    public record CreateRequest(String metamodel, String name, String role, String folder) {
     }
 
     @GetMapping
@@ -51,15 +51,16 @@ public class ModelController {
     @ResponseStatus(HttpStatus.CREATED)
     public ModelDocument create(@RequestParam(name = WS, defaultValue = DEFAULT_WS) String workspaceId,
             @RequestBody CreateRequest request) {
-        return store.create(workspaceId, request.metamodel(), request.name(), request.role());
+        return store.create(workspaceId, request.metamodel(), request.name(), request.role(), request.folder());
     }
 
     @PostMapping(path = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public ModelDocument importXmi(@RequestParam(name = WS, defaultValue = DEFAULT_WS) String workspaceId,
             @RequestParam("file") MultipartFile file, @RequestParam(required = false) String name,
-            @RequestParam(required = false) String role) throws IOException {
-        return store.importXmi(workspaceId, file.getOriginalFilename(), file.getBytes(), name, role);
+            @RequestParam(required = false) String role, @RequestParam(required = false) String folder)
+            throws IOException {
+        return store.importXmi(workspaceId, file.getOriginalFilename(), file.getBytes(), name, role, folder);
     }
 
     @GetMapping("/{id}")
@@ -72,6 +73,17 @@ public class ModelController {
     public ModelDocument replace(@RequestParam(name = WS, defaultValue = DEFAULT_WS) String workspaceId,
             @PathVariable String id, @RequestBody ModelDocument document) {
         return store.replace(workspaceId, id, document);
+    }
+
+    /** {@code folder} blank or missing takes the model out of every folder. */
+    public record FolderRequest(String folder) {
+    }
+
+    /** Moves a model to a folder of the workspace. The content is not touched: no new version. */
+    @PutMapping("/{id}/folder")
+    public ModelDocument move(@RequestParam(name = WS, defaultValue = DEFAULT_WS) String workspaceId,
+            @PathVariable String id, @RequestBody FolderRequest request) {
+        return store.move(workspaceId, id, request.folder());
     }
 
     @DeleteMapping("/{id}")

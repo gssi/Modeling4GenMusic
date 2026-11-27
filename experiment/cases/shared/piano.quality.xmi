@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<qm:QualityModel xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:qm="http://music/quality" xmi:id="piano_quality">
+  <dimensions xmi:id="RhythmicComplexity" name="RhythmicComplexity" label="Complessità ritmica" description="Quanto sono fitte e varie le durate." metric="shortNoteShare" skillLimited="true" implicit="true">
+    <bands xmi:id="r_low" max="0.3" hint="Use mostly quarter notes and half notes."/>
+    <bands xmi:id="r_med" level="MEDIUM" min="0.3" max="0.6" hint="Mix quarter notes with eighth notes."/>
+    <bands xmi:id="r_high" level="HIGH" min="0.6" max="1.0" hint="Use mostly eighth notes and shorter values."/>
+  </dimensions>
+  <dimensions xmi:id="MelodicComplexity" name="MelodicComplexity" label="Complessità melodica" description="Quanto sono ampi i movimenti tra una nota e la successiva." metric="meanLeap" skillLimited="true" skillArea="PITCH_READING" implicit="true">
+    <bands xmi:id="m_low" max="0.35" hint="Move mostly by step."/>
+    <bands xmi:id="m_med" level="MEDIUM" min="0.35" max="0.65" hint="Mix steps with small leaps."/>
+    <bands xmi:id="m_high" level="HIGH" min="0.65" max="1.0" hint="Use wide leaps often."/>
+  </dimensions>
+  <dimensions xmi:id="Density" name="Density" label="Densità" description="Quante note per pulsazione." metric="noteDensity">
+    <bands xmi:id="d_low" max="0.3" hint="Keep few notes in each bar."/>
+    <bands xmi:id="d_med" level="MEDIUM" min="0.3" max="0.6" hint="Fill the bars moderately."/>
+    <bands xmi:id="d_high" level="HIGH" min="0.6" max="1.0" hint="Fill every bar with many notes."/>
+  </dimensions>
+</qm:QualityModel>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ModelObject } from '../api/types'
 import { useStudio } from '../app/store'
 import { Field, NoteSelect, NumberInput, RhythmInput, Segmented, Select, TextInput } from './fields'
+import { QUALITY, dimensionOf, freeDimensions, newGoal, readQualityModel } from './qualityModel'
 import { INTERVAL_HINT, intervalName, maxLeap, parseIntervals } from './interval'
 import { RHYTHM_HINT } from './rhythm'
 import { useModelForm } from './useModelForm'
@@ -13,12 +14,6 @@ const CONSTRAINT_LABELS: Record<string, string> = {
   RangeConstraint: 'Estensione delle note',
   RenderConstraint: 'Dimensione del pentagramma',
   SpanConstraint: 'Apertura della mano',
-}
-const QUALITY_LABELS: Record<string, string> = {
-  RHYTHMIC_COMPLEXITY: 'Complessità ritmica',
-  MELODIC_COMPLEXITY: 'Complessità melodica',
-  DENSITY: 'Densità',
-  LENGTH: 'Lunghezza',
 }
 const LEVEL_LABELS: Record<string, string> = { LOW: 'Bassa', MEDIUM: 'Media', HIGH: 'Alta' }
 const STRENGTH_LABELS: Record<string, string> = { HARD: 'Obbligatorio', SOFT: 'Preferibile' }
@@ -95,8 +90,15 @@ export function IntentBuilder({ modelId }: { modelId: string }) {
   const constraints = spec.contents.constraints ?? []
   const goals = spec.contents.qualityGoals ?? []
   const constraintTypes = form.subclasses('Constraint')
-  const usedAttributes = new Set(goals.map((g) => g.attributes.attribute))
-  const freeAttribute = form.literals('QualityGoal', 'attribute').find((x) => !usedAttributes.has(x))
+  const qualityModels = models.filter((m) => m.metamodel === QUALITY)
+  const qualityRef = spec.references.qualityModel?.[0]
+  const qualityDoc = qualityRef?.model ? externals[qualityRef.model] : undefined
+  const quality = qualityDoc ? readQualityModel(qualityDoc) : null
+  const free = freeDimensions(goals, quality)
+  const chooseQuality = (model: string) => {
+    const root = externals[model]?.roots.find((r) => r.eClass === 'QualityModel')
+    form.setRef(spec.id, 'qualityModel', root ? { model, id: root.id } : null)
+  }
 
   const addConstraint = (className: string) => {
     const parent = { id: spec.id, feature: 'constraints' }
@@ -229,32 +231,51 @@ export function IntentBuilder({ modelId }: { modelId: string }) {
 
       <section>
         <h2>Obiettivi di qualità</h2>
-        {goals.length === 0 && <p className="hint">Nessun obiettivo. Quelli che non indichi vengono tenuti bassi dalla derivazione.</p>}
-        {goals.map((goal) => (
-          <div key={goal.id} className="form-goal">
-            <Select
-              label={`Attributo dell’obiettivo ${goal.id}`}
-              value={goal.attributes.attribute}
-              options={form.literals('QualityGoal', 'attribute')}
-              labels={QUALITY_LABELS}
-              onChange={(v) => form.set(goal.id, 'attribute', v)}
-            />
-            <Segmented
-              legend={`Livello di ${QUALITY_LABELS[String(goal.attributes.attribute)] ?? goal.attributes.attribute}`}
-              value={goal.attributes.level}
-              options={form.literals('QualityGoal', 'level')}
-              labels={LEVEL_LABELS}
-              onChange={(v) => form.set(goal.id, 'level', v)}
-            />
-            <button type="button" className="icon" aria-label={`Elimina l’obiettivo ${goal.id}`} onClick={() => form.remove(goal.id)}>
-              ×
-            </button>
-          </div>
-        ))}
+        <p className="hint">Quanto deve essere impegnativo l’esercizio. Le dimensioni disponibili sono quelle del modello di qualità scelto.</p>
+        <Field label="Modello di qualità" hint={qualityModels.length ? undefined : 'Nessun modello di qualità nel workspace: creane o importane uno per fissare obiettivi.'}>
+          {(id) => (
+            <select id={id} value={qualityRef?.model ?? ''} onChange={(e) => chooseQuality(e.target.value)}>
+              <option value="">Nessuno</option>
+              {qualityRef?.model && !qualityModels.some((m) => m.id === qualityRef.model) && <option value={qualityRef.model}>{qualityRef.model}</option>}
+              {qualityModels.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+        {quality && goals.length === 0 && <p className="hint">Nessun obiettivo. Per le dimensioni che non indichi vale ciò che dice il modello di qualità.</p>}
+        {goals.map((goal) => {
+          const dimension = dimensionOf(goal, quality)
+          const title = dimension?.label ?? goal.references.dimension?.[0]?.id ?? goal.id
+          const choices = dimension ? [dimension, ...free] : free
+          return (
+            <div key={goal.id} className="form-goal">
+              <select
+                aria-label={`Dimensione dell’obiettivo ${goal.id}`}
+                value={dimension?.id ?? ''}
+                onChange={(e) => quality && form.setRef(goal.id, 'dimension', { model: quality.model, id: e.target.value })}
+              >
+                {!dimension && <option value="">{title} (non nel modello di qualità)</option>}
+                {choices.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label}
+                  </option>
+                ))}
+              </select>
+              <Segmented legend={`Livello di ${title}`} value={goal.attributes.level ?? 'LOW'} options={form.literals('QualityGoal', 'level')} labels={LEVEL_LABELS} onChange={(v) => form.set(goal.id, 'level', v)} />
+              <button type="button" className="icon" aria-label={`Elimina l’obiettivo ${title}`} onClick={() => form.remove(goal.id)}>
+                ×
+              </button>
+              {dimension?.description && <p className="hint form-goal-note">{dimension.description}</p>}
+            </div>
+          )
+        })}
         <button
           type="button"
-          disabled={!freeAttribute}
-          onClick={() => freeAttribute && form.add('QualityGoal', { id: spec.id, feature: 'qualityGoals' }, { attribute: freeAttribute, level: 'MEDIUM' })}
+          disabled={!quality || free.length === 0}
+          onClick={() => quality && free[0] && form.insert({ id: spec.id, feature: 'qualityGoals' }, newGoal(form.newId('QualityGoal'), quality, free[0], 'MEDIUM'))}
         >
           Aggiungi obiettivo di qualità
         </button>

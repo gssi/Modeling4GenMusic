@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import org.eclipse.emf.ecore.EObject;
@@ -54,7 +55,7 @@ class GenerationApiTest {
 
     @BeforeAll
     static void deriveGiulia(@Autowired MockMvc mvc) throws Exception {
-        for (String file : new String[] { "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
+        for (String file : new String[] { "default.needs.xmi", "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
             byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", file));
             mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", file, "text/xml", bytes))
                     .param("role", file.contains("intent") ? "intent" : "")).andExpect(status().isCreated());
@@ -78,9 +79,14 @@ class GenerationApiTest {
                 .andExpect(jsonPath("$.metadata.bars").value(8))
                 .andExpect(jsonPath("$.metadata.tempo").value("1/4=72"))
                 .andExpect(jsonPath("$.report.valid").value(true))
-                .andExpect(jsonPath("$.report.checks", hasSize(7)))
+                .andExpect(jsonPath("$.report.checks", hasSize(9)))
                 .andExpect(jsonPath("$.report.checks[*].name", contains("bars", "barLength", "containsPattern",
-                        "excludesPattern", "range", "handSpan", "positionChanges")))
+                        "excludesPattern", "range", "handSpan", "positionChanges", "qualityGoal", "qualityGoal")))
+                // Each goal is measured with the metric of its dimension: a remark, whatever the outcome.
+                .andExpect(jsonPath("$.report.checks[7].blocking").value(false))
+                .andExpect(jsonPath("$.report.checks[7].message", containsString("Complessità ritmica MEDIUM: shortNoteShare vale ")))
+                .andExpect(jsonPath("$.report.checks[8].message", containsString("Complessità melodica LOW: meanLeap vale ")))
+                .andExpect(jsonPath("$.report.checks[8].message", containsString("0.0–0.35")))
                 .andExpect(jsonPath("$.report.checks[5].passed").value(true))
                 .andExpect(jsonPath("$.report.checks[5].blocking").value(true))
                 .andExpect(jsonPath("$.report.checks[5].message", containsString("Non ci sono note simultanee")))
@@ -107,10 +113,32 @@ class GenerationApiTest {
                 .content("{\"specModelId\":\"nope\"}")).andExpect(status().isNotFound());
     }
 
+    @Test
+    void qualityGoalsAreMeasuredAndTheMetricsAreListed() throws Exception {
+        String header = "X:1\nM:4/4\nL:1/8\nK:G\n";
+        // Quarter notes moving by step: no short notes, small leaps.
+        List<Check> plain = validator.validate(header + "G2 A2 B2 A2 | G2 A2 B2 A2 |]", derivedSpec(), null).checks()
+                .stream().filter(c -> c.name().equals("qualityGoal")).toList();
+        assertThat(plain).extracting(Check::blocking).containsExactly(false, false);
+        assertThat(plain.get(0).passed()).isFalse();
+        assertThat(plain.get(0).message()).isEqualTo("Complessità ritmica MEDIUM: shortNoteShare vale 0.0, fuori da 0.3–0.6");
+        assertThat(plain.get(1).passed()).isTrue();
+        assertThat(plain.get(1).message()).isEqualTo("Complessità melodica LOW: meanLeap vale 0.17, entro 0.0–0.35");
+        // Two notes in five are eighth notes: the rhythm is now as demanding as asked.
+        List<Check> mixed = validator.validate(header + "G2 AB A2 G2 | B2 AG A2 B2 |]", derivedSpec(), null).checks()
+                .stream().filter(c -> c.name().equals("qualityGoal")).toList();
+        assertThat(mixed.get(0).passed()).isTrue();
+
+        mvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/api/generations/metrics"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].name", contains("shortNoteShare", "rhythmVariety", "meanLeap", "rangeUse", "noteDensity")))
+                .andExpect(jsonPath("$[0].description").value("Quota di note più brevi di una semiminima"));
+    }
+
     private Map<String, Check> checks(String abc) {
         ValidationReport report = validator.validate(abc, derivedSpec(), null);
         assertThat(report.valid()).isFalse();
-        return report.checks().stream().collect(java.util.stream.Collectors.toMap(Check::name, c -> c));
+        return report.checks().stream().collect(java.util.stream.Collectors.toMap(Check::name, c -> c, (first, second) -> first));
     }
 
     @Test

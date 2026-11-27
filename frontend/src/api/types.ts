@@ -69,6 +69,8 @@ export interface ModelHeader {
   name: string
   metamodel: string
   role?: string
+  /** Where the model is shown in the workspace, levels separated by `/`. */
+  folder?: string
   version: number
 }
 
@@ -213,4 +215,10 @@ export interface GeneratorInfo {
   /** What to do when the generator is not available. */
   reason: string | null
   isDefault: boolean
+}
+
+/** A measure the server can take on an exercise: what a dimension of a quality model is based on. */
+export interface MetricInfo {
+  name: string
+  description: string
 }

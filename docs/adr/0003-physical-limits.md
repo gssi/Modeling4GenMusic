@@ -1,6 +1,7 @@
 # ADR 0003 — Limiti fisici nel profilo
 
-Stato: accettato (novembre 2026)
+Stato: accettato (novembre 2026). Il modo in cui un limite è scritto nel profilo è cambiato con
+l'[ADR 0006](0006-multi-level-needs.md): `HandSpanLimit` è ora un tipo del catalogo dei bisogni.
 
 ## Contesto
 

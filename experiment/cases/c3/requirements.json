@@ -1,0 +1,156 @@
+{
+  "case": "C3",
+  "staffScale": 1,
+  "requirements": [
+    {
+      "id": "C3-R1",
+      "kind": "key",
+      "text": "The exercise is in the key of C major.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Tonalità scelta dalla docente"
+      }
+    },
+    {
+      "id": "C3-R2",
+      "kind": "meter",
+      "text": "The exercise is in 4/4 time.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Metro scelto dalla docente"
+      }
+    },
+    {
+      "id": "C3-R3",
+      "kind": "bars",
+      "text": "The exercise is 4 bars long.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Short attention span",
+        "label": "The teacher's request, limited by the need “Short attention span”",
+        "rules": [
+          "CopyIntent",
+          "ApplyNeedLimits"
+        ],
+        "kind": "ConflictFix",
+        "rationale": "Attenzione breve: l'esercizio non supera 4 battute",
+        "originalValue": "8",
+        "newValue": "4"
+      }
+    },
+    {
+      "id": "C3-R4",
+      "kind": "tempo",
+      "text": "The tempo is not faster than 60 beats per minute.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Reduced motor speed",
+        "label": "The teacher's request, limited by the need “Reduced motor speed”",
+        "rules": [
+          "TempoLimit",
+          "ApplyNeedLimits"
+        ],
+        "kind": "ConflictFix",
+        "rationale": "Velocità motoria ridotta: il tempo non supera 60 bpm",
+        "originalValue": "90",
+        "newValue": "60"
+      }
+    },
+    {
+      "id": "C3-R5",
+      "kind": "containsPattern",
+      "text": "The rhythm eighth note + eighth note occurs at least once.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "StrengthenLearningPattern"
+        ],
+        "kind": "Refinement",
+        "rationale": "Il pattern '8 8' non risulta padroneggiato nel profilo: resta obbligatorio come richiesto"
+      },
+      "pattern": "8 8",
+      "minOccurrences": 1
+    },
+    {
+      "id": "C3-R6",
+      "kind": "range",
+      "text": "Every note lies between C4 and C5, both included.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "profile",
+        "label": "The learner profile",
+        "rules": [
+          "RangeFromLearner"
+        ],
+        "kind": "Derivation",
+        "rationale": "Estensione di marco: dalla nota MIDI 60 alla 72"
+      },
+      "lowestMidi": 60,
+      "highestMidi": 72
+    },
+    {
+      "id": "C3-R7",
+      "kind": "qualityGoal",
+      "text": "Rhythmic complexity is low: “Use mostly quarter notes and half notes”.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyQualityGoals"
+        ],
+        "kind": "Refinement",
+        "rationale": "Obiettivo Complessità ritmica LOW fissato dalla docente"
+      },
+      "dimension": "RhythmicComplexity",
+      "level": "LOW",
+      "metric": "shortNoteShare",
+      "min": 0,
+      "max": 0.3
+    },
+    {
+      "id": "C3-R8",
+      "kind": "qualityGoal",
+      "text": "Melodic complexity is low: “Move mostly by step”.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "qualityModel",
+        "label": "A default of the quality model",
+        "rules": [
+          "ApplyImplicitGoals"
+        ],
+        "kind": "Derivation",
+        "rationale": "La docente non indica un obiettivo per Complessità melodica: vale il livello LOW previsto dal modello di qualità"
+      },
+      "dimension": "MelodicComplexity",
+      "level": "LOW",
+      "metric": "meanLeap",
+      "min": 0,
+      "max": 0.35
+    }
+  ]
+}

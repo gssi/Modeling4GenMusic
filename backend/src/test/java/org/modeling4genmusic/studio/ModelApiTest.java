@@ -44,7 +44,7 @@ class ModelApiTest {
     @Test
     void listsAndDescribesMetamodels() throws Exception {
         mvc.perform(get("/api/metamodels")).andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].prefix", containsInAnyOrder("pr", "ex", "qm", "wv")));
+                .andExpect(jsonPath("$[*].prefix", containsInAnyOrder("pr", "ex", "qm", "wv", "nd")));
         mvc.perform(get("/api/metamodels/ex")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.nsURI").value("http://music/exercise"))
                 .andExpect(jsonPath("$.classes[?(@.name=='Constraint')].abstract").value(true))
@@ -84,6 +84,40 @@ class ModelApiTest {
 
         mvc.perform(delete("/api/models/crud-test")).andExpect(status().isNoContent());
         mvc.perform(get("/api/models/crud-test")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void modelsAreCollectedInFoldersWithoutTouchingTheirContent() throws Exception {
+        mvc.perform(post("/api/models").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"metamodel\":\"http://music/profile\",\"name\":\"Foldered\",\"folder\":\" Classe 3 // Pianoforte/ \"}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.folder").value("Classe 3/Pianoforte"));
+        mvc.perform(get("/api/models")).andExpect(jsonPath("$[?(@.id=='foldered')].folder", contains("Classe 3/Pianoforte")));
+
+        // Moving changes neither the content nor the version, and saving keeps the folder.
+        mvc.perform(put("/api/models/foldered/folder").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"Archivio\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.folder").value("Archivio"))
+                .andExpect(jsonPath("$.version").value(1));
+        mvc.perform(get("/api/models/foldered/versions")).andExpect(jsonPath("$", hasSize(1)));
+        mvc.perform(put("/api/models/foldered").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"version\":1,\"roots\":[{\"id\":\"l\",\"eClass\":\"Learner\",\"attributes\":{\"name\":\"anna\"}}]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.folder").value("Archivio"))
+                .andExpect(jsonPath("$.version").value(2));
+
+        // Out of every folder.
+        mvc.perform(put("/api/models/foldered/folder").contentType(MediaType.APPLICATION_JSON).content("{\"folder\":\"  \"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.folder").doesNotExist());
+        mvc.perform(put("/api/models/foldered/folder").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"a/b/c/d/e\"}")).andExpect(status().isBadRequest());
+        mvc.perform(put("/api/models/nobody/folder").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"folder\":\"x\"}")).andExpect(status().isNotFound());
+
+        byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", "piano.quality.xmi"));
+        mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", "in-folder.xmi", "text/xml", bytes))
+                .param("folder", "Condivisi")).andExpect(status().isCreated())
+                .andExpect(jsonPath("$.folder").value("Condivisi"));
+        mvc.perform(delete("/api/models/foldered")).andExpect(status().isNoContent());
+        mvc.perform(delete("/api/models/in-folder")).andExpect(status().isNoContent());
     }
 
     @Test
@@ -141,7 +175,7 @@ class ModelApiTest {
 
     @Test
     void importsGiuliaFixtures() throws Exception {
-        for (String file : new String[] { "giulia.intent.xmi", "giulia.profile.xmi", "piano.quality.xmi" }) {
+        for (String file : new String[] { "default.needs.xmi", "giulia.intent.xmi", "giulia.profile.xmi", "piano.quality.xmi" }) {
             byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", file));
             mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", file, "text/xml", bytes))
                     .param("role", file.contains("intent") ? "intent" : ""))
@@ -151,7 +185,10 @@ class ModelApiTest {
                 .andExpect(jsonPath("$.metamodel").value("http://music/profile"))
                 .andExpect(jsonPath("$.roots[0].attributes.comfortableBpm").value(72))
                 .andExpect(jsonPath("$.roots[0].contents.patterns", hasSize(4)))
-                .andExpect(jsonPath("$.roots[0].contents.needs[0].eClass").value("LowVision"));
+                .andExpect(jsonPath("$.roots[0].contents.needs[0].eClass").value("Need"))
+                .andExpect(jsonPath("$.roots[0].contents.needs[0].references.type[0].model").value("default.needs"))
+                .andExpect(jsonPath("$.roots[0].contents.needs[0].references.type[0].id").value("LowVision"))
+                .andExpect(jsonPath("$.roots[0].contents.needs[0].contents.slots[0].attributes.value").value("1.5"));
         mvc.perform(get("/api/models/giulia.intent")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.role").value("intent"))
                 .andExpect(jsonPath("$.roots[0].references.learner[0].model").value("giulia.profile"))
@@ -160,7 +197,12 @@ class ModelApiTest {
                 .andExpect(jsonPath("$.roots[0].contents.constraints[0].contents.pattern[0].attributes.expression")
                         .value("8. 16"));
         mvc.perform(get("/api/models/piano.quality"))
-                .andExpect(jsonPath("$.roots[0].contents.bindings[1].contents.bands[0].id").value("m_low"));
+                .andExpect(jsonPath("$.roots[0].contents.dimensions[1].contents.bands[0].id").value("m_low"))
+                .andExpect(jsonPath("$.roots[0].contents.dimensions[1].attributes.metric").value("meanLeap"));
+        mvc.perform(get("/api/models/giulia.intent"))
+                .andExpect(jsonPath("$.roots[0].references.qualityModel[0].model").value("piano.quality"))
+                .andExpect(jsonPath("$.roots[0].contents.qualityGoals[0].references.dimension[0].id")
+                        .value("RhythmicComplexity"));
         mvc.perform(multipart("/api/models/import")
                 .file(new MockMultipartFile("file", "broken.xmi", "text/xml", "<nope".getBytes())))
                 .andExpect(status().isBadRequest());

@@ -51,8 +51,8 @@ test e CI non richiedono il modello.
 - Il modello segue la specifica in modo debole: tonalità, metro e battute sono garantiti dal
   backend, il resto dipende dai tentativi. L'interfaccia mostra sempre il rapporto dei controlli e
   i tentativi scartati.
-- Gli obiettivi di qualità non entrano ancora nella richiesta in modo misurabile: le metriche
-  `rhythmScore` e `melodicScore` restano da definire.
+- Gli obiettivi di qualità entrano nella richiesta con la frase del loro livello e sono misurati
+  sull'esercizio, senza renderlo non valido: vedi l'[ADR 0007](0007-quality-dimensions-as-data.md).
 - Il lettore ABC legge terzine e gruppi comuni e ignora gli abbellimenti; accordi e cambi di
   tonalità o metro in mezzo al brano fanno scartare il tentativo.
 - Strade per migliorare, non intraprese: più tentativi, un modello generico più ubbidiente,

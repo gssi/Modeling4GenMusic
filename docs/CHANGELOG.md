@@ -2,6 +2,94 @@
 
 Una nota per milestone. Le modifiche ai metamodelli vanno segnalate qui.
 
+## Dimensioni di qualità definite nel modello di qualità
+
+**Modifica ai metamodelli** (scelte in `docs/adr/0007-quality-dimensions-as-data.md`):
+
+- `quality`: `QualityModel` contiene `QualityDimension` (nome, etichetta, descrizione, `metric`,
+  `skillLimited` + `skillArea`, `implicit` + `defaultLevel`) con le sue `Band`, che hanno anche
+  `hint`, la frase per il generatore. `MetricBinding` non esiste più. L'enum `Level` è ora qui.
+- `exercise`: tolti gli enum `QualityAttribute` e `Level`. `QualityGoal` ha `dimension [1]` verso
+  `quality.QualityDimension`; `ExerciseSpec` ha `qualityModel`. Intenti e modelli di qualità
+  scritti con l'enum vanno riscritti.
+- `profile`, `needs`, `weaving`: nessuna modifica.
+- Diagrammi: tutti e cinque i metamodelli sono ora generati da `metamodels/render_diagrams.py`;
+  nuovi `levels-needs` e `levels-quality` (da `render_levels.py`) con i livelli classe → tipo →
+  istanza.
+
+Il resto:
+
+- Derivazione: il modello di qualità è quello indicato dall'intento (il campo `qualityModelId`
+  della richiesta non serve più). `ApplyImplicitGoals` al posto di `FocusOtherDimensionsLow`;
+  nessun nome di dimensione negli script.
+- Validazione: `quality.evl` controlla nomi unici, una banda per livello, metrica conosciuta;
+  `intent.evl` controlla che gli obiettivi usino dimensioni del modello di qualità dell'intento.
+- Metriche calcolate sull'esercizio: `shortNoteShare`, `rhythmVariety`, `meanLeap`, `rangeUse`,
+  `noteDensity`. `GET /api/generations/metrics` le elenca.
+- Generazione: la frase del livello di ogni obiettivo entra nella richiesta; ogni obiettivo è
+  misurato in un controllo `qualityGoal`, non bloccante. A parità di vincoli rispettati si tiene
+  il tentativo più vicino agli obiettivi.
+- Studio: scheda del modello di qualità per dimensioni; nell'intento si sceglie il modello di
+  qualità e gli obiettivi tra le sue dimensioni.
+- Esperimento: gli obiettivi di qualità sono tra i requisiti, come preferenze. I risultati della
+  prima esecuzione sono stati tolti e i cinque casi rigenerati con il nuovo modello.
+
+## Cartelle nel workspace
+
+- I modelli si raccolgono in cartelle, anche annidate (`Classe 3/Giulia`). La cartella è un dato di
+  `id.meta.json`, non una sottocartella sul disco: identificativi, riferimenti tra modelli e
+  cronologia non cambiano quando un modello viene spostato.
+- Pannello «Modelli»: cartelle che si aprono e chiudono (lo stato resta nel browser), con i modelli
+  raggruppati per tipo dentro ciascuna; creazione e importazione direttamente in una cartella.
+- Campo «Cartella» nella barra di ogni modello, con le cartelle in uso come suggerimenti. Spostare
+  non crea una versione.
+- I modelli prodotti da una derivazione vanno nella cartella dell'intento; rifacendo la derivazione
+  restano dove sono stati messi.
+- API: `PUT /api/models/{id}/folder`; `folder` in creazione e importazione.
+- `experiment/run.mjs` mette ogni caso in `Esperimento/<ID>` e i modelli comuni in `Condivisi`.
+
+## Esperimento con gli esperti
+
+- `experiment/`: cinque casi (profilo, intento, descrizione in inglese) e lo script `run.mjs` che
+  li deriva, chiede l'esercizio al modello musicale e scrive specifica, traccia, esercizio, esito
+  dei controlli e requisiti con identificativi stabili (`C3-R2`). Dettagli in
+  `experiment/README.md`.
+- Sito statico in inglese (`frontend/experiment.html`, `npm run build:experiment`): per ogni caso
+  descrizione, requisiti, partitura con ascolto e file da scaricare; con `?view=full` anche i
+  controlli automatici, i tentativi e la richiesta al modello. Non serve il backend.
+- `.github/workflows/pages.yml` pubblica il sito su GitHub Pages.
+- `ScorePlayer` accetta i testi dei comandi, per una pagina in un'altra lingua.
+
+## Bisogni tipizzati da un catalogo
+
+**Modifica ai metamodelli** (scelte in `docs/adr/0006-multi-level-needs.md`):
+
+- Nuovo metamodello `needs` (`http://music/needs`): `NeedCatalog`, `NeedType`, `ParameterDef`,
+  `Effect` con `ConstraintEffect` e `SpecEffect`, `Value` con `Binding`; enum `ParameterKind` e
+  `Combine`.
+- `profile`: tolte `LowVision` e `HandSpanLimit`. `Need` è concreta, con `type [1]` verso
+  `needs.NeedType` e gli `Slot` (`parameter [1]`, `value`); `Learner` ha `catalog` verso
+  `needs.NeedCatalog`. I profili scritti con le vecchie classi vanno riscritti.
+- `weaving`: `DerivationWeaving.needCatalog` e nuova origine `NEED_CATALOG`.
+- `exercise`: nessuna modifica.
+- Diagrammi: `needs` nuovo e `profile` rigenerato da `metamodels/render_diagrams.py`. Il diagramma
+  `weaving` è ancora quello originale e non mostra le due aggiunte.
+
+Il resto:
+
+- Derivazione: `ApplyNeeds` e `ApplyNeedLimits` al posto di `RenderForLowVision` e
+  `SpanFromHandLimit`. Seguono bisogno → tipo → effetto senza nominare alcun bisogno; ogni link ha
+  per sorgenti lo slot del profilo e l'effetto del catalogo.
+- Validazione: nuovo `needs.evl` (il catalogo deve poter essere applicato a `exercise`);
+  `profile.evl` controlla catalogo, tipo, parametri obbligatori e valori al posto di
+  `HandSpanBounds`; `intent.evl` ha il nuovo avviso `NeedLimitExceeded`.
+- Fixture: `default.needs.xmi` con sei tipi (ipovisione, apertura della mano, attenzione breve,
+  velocità motoria ridotta, affollamento visivo, posizione fissa della mano); `giulia.profile.xmi`
+  riscritto con gli stessi valori. Il catalogo va importato prima del profilo.
+- Scheda dell'allievo: una sola sezione «Bisogni», costruita dal catalogo scelto.
+- Generazione: più vincoli di estensione sono detti al modello come la loro intersezione; il testo
+  della richiesta è nei metadati del risultato (`prompt`).
+
 ## Assistente per scrivere le regole
 
 - Nell'editor di ogni script, «Descrivi la regola»: una descrizione in italiano diventa una regola

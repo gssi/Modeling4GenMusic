@@ -1,0 +1,185 @@
+{
+  "case": "C4",
+  "staffScale": 1.8,
+  "requirements": [
+    {
+      "id": "C4-R1",
+      "kind": "key",
+      "text": "The exercise is in the key of F major.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Tonalità scelta dalla docente"
+      }
+    },
+    {
+      "id": "C4-R2",
+      "kind": "meter",
+      "text": "The exercise is in 3/4 time.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Metro scelto dalla docente"
+      }
+    },
+    {
+      "id": "C4-R3",
+      "kind": "bars",
+      "text": "The exercise is 8 bars long.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Numero di battute scelto dalla docente"
+      }
+    },
+    {
+      "id": "C4-R4",
+      "kind": "tempo",
+      "text": "The tempo is not faster than 76 beats per minute.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "TempoLimit"
+        ],
+        "kind": "Refinement",
+        "rationale": "Il tempo richiesto (76 bpm) è entro il tempo comodo"
+      }
+    },
+    {
+      "id": "C4-R5",
+      "kind": "containsPattern",
+      "text": "The rhythm eighth note + eighth note occurs at least once.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "teacher+profile",
+        "label": "The teacher's request, weighted by the learner profile",
+        "rules": [
+          "StrengthenLearningPattern"
+        ],
+        "kind": "Refinement",
+        "rationale": "Il pattern '8 8' è già padroneggiato: resta una preferenza"
+      },
+      "pattern": "8 8",
+      "minOccurrences": 1
+    },
+    {
+      "id": "C4-R6",
+      "kind": "range",
+      "text": "Every note lies between C4 and F5, both included.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "profile",
+        "label": "The learner profile",
+        "rules": [
+          "RangeFromLearner"
+        ],
+        "kind": "Derivation",
+        "rationale": "Estensione di sara: dalla nota MIDI 60 alla 77"
+      },
+      "lowestMidi": 60,
+      "highestMidi": 77
+    },
+    {
+      "id": "C4-R7",
+      "kind": "render",
+      "text": "The staff is displayed at least 1.8 times its normal size.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Visual crowding",
+        "label": "The learner's need “Visual crowding”",
+        "rules": [
+          "ApplyNeeds"
+        ],
+        "kind": "Derivation",
+        "rationale": "Affollamento visivo: il pentagramma va ingrandito almeno di 1.8 volte"
+      },
+      "staffScale": 1.8,
+      "appliedBy": "display"
+    },
+    {
+      "id": "C4-R8",
+      "kind": "excludesPattern",
+      "text": "The rhythm sixteenth note + sixteenth note never occurs.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Visual crowding",
+        "label": "The learner's need “Visual crowding”",
+        "rules": [
+          "ApplyNeeds"
+        ],
+        "kind": "Derivation",
+        "rationale": "Affollamento visivo: niente coppie di semicrome, che addensano la pagina"
+      },
+      "pattern": "16 16"
+    },
+    {
+      "id": "C4-R9",
+      "kind": "qualityGoal",
+      "text": "Rhythmic complexity is medium: “Mix quarter notes with eighth notes”.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyQualityGoals"
+        ],
+        "kind": "Refinement",
+        "rationale": "Obiettivo Complessità ritmica MEDIUM fissato dalla docente"
+      },
+      "dimension": "RhythmicComplexity",
+      "level": "MEDIUM",
+      "metric": "shortNoteShare",
+      "min": 0.3,
+      "max": 0.6
+    },
+    {
+      "id": "C4-R10",
+      "kind": "qualityGoal",
+      "text": "Melodic complexity is low: “Move mostly by step”.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "qualityModel",
+        "label": "A default of the quality model",
+        "rules": [
+          "ApplyImplicitGoals"
+        ],
+        "kind": "Derivation",
+        "rationale": "La docente non indica un obiettivo per Complessità melodica: vale il livello LOW previsto dal modello di qualità"
+      },
+      "dimension": "MelodicComplexity",
+      "level": "LOW",
+      "metric": "meanLeap",
+      "min": 0,
+      "max": 0.35
+    }
+  ]
+}

@@ -68,12 +68,12 @@ class DerivationApiTest {
     @BeforeEach
     void importFixtures() throws Exception {
         for (String id : new String[] { "giulia.intent.weaving", "giulia.intent.derived", "giulia.intent",
-                "giulia.profile", "piano.quality" }) {
+                "giulia.profile", "piano.quality", "default.needs" }) {
             if (store.exists(WS, id)) {
                 store.delete(WS, id);
             }
         }
-        for (String file : new String[] { "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
+        for (String file : new String[] { "default.needs.xmi", "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
             byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", file));
             mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", file, "text/xml", bytes))
                     .param("role", file.contains("intent") ? "intent" : "")).andExpect(status().isCreated());
@@ -137,16 +137,19 @@ class DerivationApiTest {
         List<ObjectNode> goals = spec.contents().get("qualityGoals");
         assertThat(goals).extracting(ObjectNode::id).containsExactly("qg_rhythmic_complexity",
                 "qg_melodic_complexity");
-        assertThat(goals.get(0).attributes()).containsEntry("attribute", "RHYTHMIC_COMPLEXITY")
-                .containsEntry("level", "MEDIUM");
-        assertThat(goals.get(1).attributes()).containsEntry("attribute", "MELODIC_COMPLEXITY")
-                .containsEntry("level", "LOW");
+        // A goal names a dimension of the quality model; the second one is implicit in that model.
+        assertThat(goals.get(0).attributes()).containsEntry("level", "MEDIUM");
+        assertThat(goals.get(0).references().get("dimension").get(0)).isEqualTo(new Ref("piano.quality", "RhythmicComplexity", null));
+        assertThat(goals.get(1).attributes()).containsEntry("level", "LOW");
+        assertThat(goals.get(1).references().get("dimension").get(0).id()).isEqualTo("MelodicComplexity");
+        assertThat(spec.references().get("qualityModel").get(0)).isEqualTo(new Ref("piano.quality", "piano_quality", null));
 
         // ---- weaving
         ObjectNode weaving = store.get(WS, "giulia.intent.weaving").roots().get(0);
         assertThat(weaving.references()).containsEntry("learner", List.of(new Ref("giulia.profile", "giulia", null)))
                 .containsEntry("teacherIntent", List.of(new Ref("giulia.intent", "intent", null)))
                 .containsEntry("qualityModel", List.of(new Ref("piano.quality", "piano_quality", null)))
+                .containsEntry("needCatalog", List.of(new Ref("default.needs", "needs", null)))
                 .containsEntry("derivedSpec", List.of(new Ref("giulia.intent.derived", "spec", null)));
         List<ObjectNode> links = weaving.contents().get("links");
         assertThat(links).allSatisfy(link -> {
@@ -173,19 +176,23 @@ class DerivationApiTest {
 
         assertThat(links).extracting(l -> l.attributes().get("rule")).contains("CopyIntent",
                 "InstrumentFromLearner", "TempoLimit", "StrengthenLearningPattern", "ExcludeNotIntroduced",
-                "RangeFromLearner", "RenderForLowVision", "SpanFromHandLimit", "CopyQualityGoals",
-                "FocusOtherDimensionsLow", "ResolveThresholds");
-        ObjectNode span = links.stream().filter(l -> "SpanFromHandLimit".equals(l.attributes().get("rule")))
+                "RangeFromLearner", "ApplyNeeds", "CopyQualityGoals",
+                "ApplyImplicitGoals", "ResolveThresholds");
+        // The span constraint is not written by a rule about hands: it comes from the type of the need.
+        ObjectNode span = links.stream().filter(l -> l.references().get("target").get(0).id().equals("c_span_1"))
                 .findFirst().orElseThrow();
         assertThat(span.eClass()).isEqualTo("Derivation");
-        assertThat(span.attributes()).containsEntry("rationale",
+        assertThat(span.attributes()).containsEntry("rule", "ApplyNeeds").containsEntry("rationale",
                 "Limite di apertura della mano destra: massimo 9 semitoni (sesta maggiore)");
-        assertThat(span.references().get("target").get(0).id()).isEqualTo("c_span_1");
-        ObjectNode spanSource = span.contents().get("sources").get(0);
-        assertThat(spanSource.attributes()).containsEntry("origin", "PROFILE").containsEntry("feature",
-                "maxStretchSemitones");
-        assertThat(spanSource.references().get("element"))
-                .containsExactly(new Ref("giulia.profile", "need_handspan", null));
+        List<ObjectNode> spanSources = span.contents().get("sources");
+        assertThat(spanSources).extracting(source -> source.attributes().get("origin") + " "
+                + source.references().get("element").get(0).model() + "#"
+                + source.references().get("element").get(0).id()).containsExactly(
+                        "PROFILE giulia.profile#need_handspan_hand",
+                        "PROFILE giulia.profile#need_handspan_maxStretchSemitones",
+                        "PROFILE giulia.profile#need_handspan_maxStretchSemitones",
+                        "NEED_CATALOG default.needs#HandSpanLimit_span");
+        assertThat(spanSources.get(0).attributes()).containsEntry("feature", "value");
 
         mvc.perform(post("/api/models/giulia.intent.weaving/validate")).andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
@@ -226,6 +233,215 @@ class DerivationApiTest {
         assertThat(constraints).filteredOn(c -> c.eClass().equals("ContainsPattern")).hasSize(2);
         mvc.perform(post("/api/models/giulia-leap.intent.weaving/validate")).andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    /** A copy of a node with one more child under a containment. */
+    private static ObjectNode plus(ObjectNode node, String containment, ObjectNode child) {
+        Map<String, List<ObjectNode>> contents = new java.util.LinkedHashMap<>(node.contents());
+        List<ObjectNode> children = new ArrayList<>(contents.getOrDefault(containment, List.of()));
+        children.add(child);
+        contents.put(containment, children);
+        return new ObjectNode(node.id(), node.eClass(), node.attributes(), contents, node.references());
+    }
+
+    @Test
+    void aNeedTypeAddedOnlyToTheCatalogChangesTheSpec() throws Exception {
+        // The type level is a model: a kind of need the code has never heard of, with a parameter,
+        // a constraint that reaches a contained element and a ceiling on an attribute of the spec.
+        ObjectNode maxBars = new ObjectNode("Tiring_maxBars", "ParameterDef",
+                Map.of("name", "maxBars", "label", "Battute", "kind", "INTEGER", "min", 1.0), null, null);
+        ObjectNode noEighths = new ObjectNode("Tiring_plain", "ConstraintEffect",
+                Map.of("constraintClass", "ExcludesPattern", "rationale", "Si stanca presto: niente crome"),
+                Map.of("bindings", List.of(
+                        new ObjectNode("Tiring_plain_kind", "Binding", Map.of("feature", "pattern.kind", "literal", "RHYTHM"), null, null),
+                        new ObjectNode("Tiring_plain_expression", "Binding", Map.of("feature", "pattern.expression", "literal", "8 8"), null, null))),
+                null);
+        ObjectNode shorter = new ObjectNode("Tiring_short", "SpecEffect",
+                Map.of("feature", "bars", "combine", "MIN", "rationale", "Si stanca presto: al massimo {maxBars} battute"),
+                null, Map.of("parameter", List.of(new Ref(null, "Tiring_maxBars", null))));
+        ObjectNode tiring = new ObjectNode("Tiring", "NeedType", Map.of("name", "Tiring", "label", "Si stanca presto"),
+                Map.of("parameters", List.of(maxBars), "effects", List.of(noEighths, shorter)), null);
+        ModelDocument catalog = store.get(WS, "default.needs");
+        store.replace(WS, "default.needs", catalog.withRoots(List.of(plus(catalog.roots().get(0), "types", tiring))));
+        mvc.perform(post("/api/models/default.needs/validate")).andExpect(jsonPath("$", hasSize(0)));
+
+        ObjectNode slot = new ObjectNode("need_tiring_maxBars", "Slot", Map.of("value", "6"), null,
+                Map.of("parameter", List.of(new Ref("default.needs", "Tiring_maxBars", null))));
+        ObjectNode need = new ObjectNode("need_tiring", "Need", Map.of(), Map.of("slots", List.of(slot)),
+                Map.of("type", List.of(new Ref("default.needs", "Tiring", null))));
+        ModelDocument profile = store.get(WS, "giulia.profile");
+        store.replace(WS, "giulia.profile", profile.withRoots(List.of(plus(profile.roots().get(0), "needs", need))));
+
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+
+        ObjectNode spec = store.get(WS, "giulia.intent.derived").roots().get(0);
+        assertThat(spec.attributes()).containsEntry("bars", 6);
+        List<ObjectNode> constraints = spec.contents().get("constraints");
+        assertThat(constraints).extracting(ObjectNode::id).containsExactly("c_contains_1", "c_excludes_1", "c_range_1",
+                "c_render_1", "c_span_1", "c_excludes_2");
+        ObjectNode excludes = constraints.get(5);
+        assertThat(excludes.attributes()).containsEntry("strength", "HARD");
+        ObjectNode pattern = excludes.contents().get("pattern").get(0);
+        assertThat(pattern.id()).isEqualTo("c_excludes_2_pattern");
+        assertThat(pattern.attributes()).containsEntry("kind", "RHYTHM").containsEntry("expression", "8 8");
+
+        List<ObjectNode> links = store.get(WS, "giulia.intent.weaving").roots().get(0).contents().get("links");
+        ObjectNode ceiling = links.stream().filter(l -> "ApplyNeedLimits".equals(l.attributes().get("rule")))
+                .findFirst().orElseThrow();
+        assertThat(ceiling.eClass()).isEqualTo("ConflictFix");
+        assertThat(ceiling.attributes()).containsEntry("targetFeature", "bars").containsEntry("originalValue", "8")
+                .containsEntry("newValue", "6").containsEntry("critique", "NeedLimitExceeded")
+                .containsEntry("rationale", "Si stanca presto: al massimo 6 battute");
+        assertThat(ceiling.contents().get("sources")).extracting(source -> source.attributes().get("origin") + " "
+                + source.references().get("element").get(0).id()).containsExactly("PROFILE need_tiring_maxBars",
+                        "NEED_CATALOG Tiring_short");
+        // Every element the need added, the contained pattern too, is traced.
+        mvc.perform(post("/api/models/giulia.intent.weaving/validate")).andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void aDimensionAddedOnlyToTheQualityModelBecomesAGoalOfTheSpec() throws Exception {
+        // A dimension the code has never heard of: implicit at MEDIUM, measured with an existing metric.
+        ObjectNode band = new ObjectNode("w_med", "Band", Map.of("level", "MEDIUM", "min", 0.0, "max", 1.0, "hint", "Use about an octave."), null, null);
+        ObjectNode range = new ObjectNode("RangeUse", "QualityDimension",
+                Map.of("name", "RangeUse", "label", "Estensione usata", "metric", "rangeUse", "implicit", true, "defaultLevel", "MEDIUM"),
+                Map.of("bands", List.of(band)), null);
+        ModelDocument quality = store.get(WS, "piano.quality");
+        store.replace(WS, "piano.quality", quality.withRoots(List.of(plus(quality.roots().get(0), "dimensions", range))));
+        mvc.perform(post("/api/models/piano.quality/validate")).andExpect(jsonPath("$", hasSize(0)));
+
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+
+        List<ObjectNode> goals = store.get(WS, "giulia.intent.derived").roots().get(0).contents().get("qualityGoals");
+        assertThat(goals).extracting(ObjectNode::id).containsExactly("qg_rhythmic_complexity", "qg_melodic_complexity",
+                "qg_range_use");
+        assertThat(goals.get(2).attributes()).containsEntry("level", "MEDIUM");
+        List<ObjectNode> links = store.get(WS, "giulia.intent.weaving").roots().get(0).contents().get("links");
+        List<ObjectNode> about = links.stream().filter(l -> l.references().get("target").get(0).id().equals("qg_range_use")).toList();
+        assertThat(about).extracting(l -> l.attributes().get("rule")).containsExactly("ApplyImplicitGoals", "ResolveThresholds");
+        assertThat(about.get(0).attributes()).containsEntry("rationale",
+                "La docente non indica un obiettivo per Estensione usata: vale il livello MEDIUM previsto dal modello di qualità");
+        assertThat(about.get(0).contents().get("sources").get(0).attributes()).containsEntry("origin", "QUALITY_MODEL")
+                .containsEntry("feature", "defaultLevel");
+        assertThat(about.get(1).attributes()).containsEntry("rationale", "Estensione usata MEDIUM significa rangeUse tra 0.0 e 1.0");
+    }
+
+    @Test
+    void anIntentWithoutAQualityModelDerivesWithoutGoals() throws Exception {
+        ModelDocument intent = store.get(WS, "giulia.intent");
+        ObjectNode root = intent.roots().get(0);
+        Map<String, List<ObjectNode>> contents = new java.util.LinkedHashMap<>(root.contents());
+        contents.remove("qualityGoals");
+        Map<String, List<Ref>> references = new java.util.LinkedHashMap<>(root.references());
+        references.remove("qualityModel");
+        store.replace(WS, "giulia.intent", intent.withRoots(List.of(
+                new ObjectNode(root.id(), root.eClass(), root.attributes(), contents, references))));
+
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        ObjectNode spec = store.get(WS, "giulia.intent.derived").roots().get(0);
+        assertThat(spec.contents().get("qualityGoals")).isNullOrEmpty();
+        assertThat(spec.references().get("qualityModel")).isNullOrEmpty();
+        mvc.perform(post("/api/models/giulia.intent.weaving/validate")).andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void whatIsDerivedGoesInTheFolderOfTheIntentAndThenStaysWhereItIsPut() throws Exception {
+        store.move(WS, "giulia.intent", "Classe 3/Giulia");
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        assertThat(store.meta(WS, "giulia.intent.derived").folder()).isEqualTo("Classe 3/Giulia");
+        assertThat(store.meta(WS, "giulia.intent.weaving").folder()).isEqualTo("Classe 3/Giulia");
+
+        store.move(WS, "giulia.intent.weaving", "Tracce");
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        assertThat(store.meta(WS, "giulia.intent.weaving").folder()).isEqualTo("Tracce");
+        assertThat(store.meta(WS, "giulia.intent.weaving").version()).isEqualTo(2);
+    }
+
+    private void addNeed(String id, String type, String parameter, String value) {
+        ObjectNode slot = new ObjectNode(id + "_" + parameter, "Slot", Map.of("value", value), null,
+                Map.of("parameter", List.of(new Ref("default.needs", type + "_" + parameter, null))));
+        ObjectNode need = new ObjectNode(id, "Need", Map.of(), Map.of("slots", List.of(slot)),
+                Map.of("type", List.of(new Ref("default.needs", type, null))));
+        ModelDocument profile = store.get(WS, "giulia.profile");
+        store.replace(WS, "giulia.profile", profile.withRoots(List.of(plus(profile.roots().get(0), "needs", need))));
+    }
+
+    private ObjectNode needLimitLink() {
+        List<ObjectNode> links = store.get(WS, "giulia.intent.weaving").roots().get(0).contents().get("links");
+        return links.stream().filter(l -> "ApplyNeedLimits".equals(l.attributes().get("rule"))).findFirst().orElseThrow();
+    }
+
+    @Test
+    void aNeedThatOverridesTheTeacherIsWarnedOnTheIntentAndTracedAsItsFix() throws Exception {
+        // Giulia is asked 90 bpm and is comfortable at 72: the need lowers the tempo further.
+        addNeed("need_slow", "ReducedMotorSpeed", "maxBpm", "60");
+        mvc.perform(post("/api/models/giulia.intent/validate")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.constraint == 'NeedLimitExceeded')].severity", contains("WARNING")))
+                .andExpect(jsonPath("$[?(@.constraint == 'NeedLimitExceeded')].message", contains(
+                        "Velocità motoria ridotta: il tempo non supera 60 bpm (richiesto: 90): "
+                                + "la derivazione applicherà il limite di giulia")));
+
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        assertThat(store.get(WS, "giulia.intent.derived").roots().get(0).attributes()).containsEntry("maxBpm", 60);
+        ObjectNode link = needLimitLink();
+        assertThat(link.eClass()).isEqualTo("ConflictFix");
+        assertThat(link.attributes()).containsEntry("critique", "NeedLimitExceeded")
+                .containsEntry("originalValue", "72").containsEntry("newValue", "60");
+    }
+
+    @Test
+    void aNeedThatOnlyTightensAValueOfTheProfileIsADerivation() throws Exception {
+        // 66 bpm is above nothing the teacher asked once the request is within it, but below the comfortable 72.
+        ModelDocument intent = store.get(WS, "giulia.intent");
+        Map<String, Object> attributes = new java.util.LinkedHashMap<>(intent.roots().get(0).attributes());
+        attributes.remove("requestedBpm");
+        ObjectNode root = intent.roots().get(0);
+        store.replace(WS, "giulia.intent", intent.withRoots(List.of(
+                new ObjectNode(root.id(), root.eClass(), attributes, root.contents(), root.references()))));
+        addNeed("need_slow", "ReducedMotorSpeed", "maxBpm", "66");
+
+        mvc.perform(post("/api/models/giulia.intent/validate")).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.constraint == 'NeedLimitExceeded')]", hasSize(0)));
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        assertThat(store.get(WS, "giulia.intent.derived").roots().get(0).attributes()).containsEntry("maxBpm", 66);
+        assertThat(needLimitLink().eClass()).isEqualTo("Derivation");
+    }
+
+    @Test
+    void aCeilingThatIsAlreadyRespectedLeavesTheSpecAsItIsAndAProfileWithoutNeedsStillDerives() throws Exception {
+        ObjectNode slot = new ObjectNode("need_attention_maxBars", "Slot", Map.of("value", "16"), null,
+                Map.of("parameter", List.of(new Ref("default.needs", "ShortAttentionSpan_maxBars", null))));
+        ObjectNode need = new ObjectNode("need_attention", "Need", Map.of(), Map.of("slots", List.of(slot)),
+                Map.of("type", List.of(new Ref("default.needs", "ShortAttentionSpan", null))));
+        ModelDocument profile = store.get(WS, "giulia.profile");
+        store.replace(WS, "giulia.profile", profile.withRoots(List.of(plus(profile.roots().get(0), "needs", need))));
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        assertThat(store.get(WS, "giulia.intent.derived").roots().get(0).attributes()).containsEntry("bars", 8);
+        assertThat(store.get(WS, "giulia.intent.weaving").roots().get(0).contents().get("links"))
+                .noneMatch(l -> "ApplyNeedLimits".equals(l.attributes().get("rule")));
+
+        // No needs and no catalog: the script sees an empty catalog model and goes on.
+        ObjectNode learner = store.get(WS, "giulia.profile").roots().get(0);
+        Map<String, List<ObjectNode>> contents = new java.util.LinkedHashMap<>(learner.contents());
+        contents.remove("needs");
+        ModelDocument current = store.get(WS, "giulia.profile");
+        store.replace(WS, "giulia.profile", current.withRoots(List.of(
+                new ObjectNode(learner.id(), learner.eClass(), learner.attributes(), contents, Map.of()))));
+        mvc.perform(post("/api/derivations").contentType(MediaType.APPLICATION_JSON).content(DERIVE))
+                .andExpect(status().isOk());
+        ObjectNode spec = store.get(WS, "giulia.intent.derived").roots().get(0);
+        assertThat(spec.contents().get("constraints")).extracting(ObjectNode::id).containsExactly("c_contains_1",
+                "c_excludes_1", "c_range_1");
+        assertThat(store.get(WS, "giulia.intent.weaving").roots().get(0).references()).doesNotContainKey("needCatalog");
     }
 
     @Test
@@ -289,16 +505,16 @@ class DerivationApiTest {
         mvc.perform(get("/api/derivations/script")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.script").value("derive.etl")).andExpect(jsonPath("$.modified").value(false))
                 .andExpect(jsonPath("$.problems", hasSize(0)))
-                .andExpect(jsonPath("$.inputs[*].alias", contains("L", "T", "Q")))
+                .andExpect(jsonPath("$.inputs[*].alias", contains("L", "T", "Q", "N")))
                 .andExpect(jsonPath("$.outputs[*].alias", contains("S", "W")))
                 .andExpect(jsonPath("$.rules[0].name").value("CopyIntent"))
                 .andExpect(jsonPath("$.rules[0].from").value("T!ExerciseSpec"))
                 .andExpect(jsonPath("$.rules[0].to", contains("S!ExerciseSpec")))
                 .andExpect(jsonPath("$.rules[0].guard").value("t = intent()"))
                 .andExpect(jsonPath("$.rules[0].comment", containsString("The spec starts as a copy")))
-                .andExpect(jsonPath("$.rules[*].name", hasItem("SpanFromHandLimit")))
+                .andExpect(jsonPath("$.rules[*].name", hasItem("RangeFromLearner")))
                 .andExpect(jsonPath("$.blocks[*].kind", hasItems("pre", "post")))
-                .andExpect(jsonPath("$.blocks[*].name", hasItem("TempoLimit")));
+                .andExpect(jsonPath("$.blocks[*].name", hasItems("TempoLimit", "ApplyNeeds", "ApplyNeedLimits")));
 
         String original = Scripts.read("derive.etl");
         java.util.function.Function<String, String> body = source -> {
@@ -313,7 +529,7 @@ class DerivationApiTest {
         String broken = original.replace("rule CopyIntent\n  transform t", "rule CopyIntent\n  transfrom t");
         mvc.perform(post("/api/derivations/script/check").contentType(MediaType.APPLICATION_JSON)
                 .content(body.apply(broken))).andExpect(status().isOk())
-                .andExpect(jsonPath("$.problems[0].line").value(39)).andExpect(jsonPath("$.rules", hasSize(0)));
+                .andExpect(jsonPath("$.problems[0].line").value(36)).andExpect(jsonPath("$.rules", hasSize(0)));
         mvc.perform(put("/api/derivations/script").contentType(MediaType.APPLICATION_JSON).content(body.apply(broken)))
                 .andExpect(status().isUnprocessableEntity());
 

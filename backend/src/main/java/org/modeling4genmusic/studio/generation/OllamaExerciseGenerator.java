@@ -72,6 +72,7 @@ public class OllamaExerciseGenerator implements ExerciseGenerator {
         metadata.put("generator", id());
         metadata.put("model", client.model());
         metadata.put("seed", seed);
+        metadata.put("prompt", prompt);
         metadata.put("seconds", Math.round((System.nanoTime() - start) / 1e8) / 10.0);
         metadata.put("meter", meter);
         metadata.put("key", key);
@@ -87,10 +88,18 @@ public class OllamaExerciseGenerator implements ExerciseGenerator {
         String instrument = literal(spec, "instrument");
         notes.add("A" + (bars > 0 ? " " + bars + " bar" : "") + " exercise for a beginner"
                 + (instrument == null ? "" : " " + instrument.toLowerCase() + " player") + ".");
+        // Several ranges (the learner's, a need's, the teacher's) are told once, as the one they all allow.
+        List<EObject> ranges = children(spec, "constraints").stream()
+                .filter(c -> c.eClass().getName().equals("RangeConstraint")).toList();
         for (EObject constraint : children(spec, "constraints")) {
             switch (constraint.eClass().getName()) {
-                case "RangeConstraint" -> notes.add("All notes stay between " + noteName(number(constraint, "lowestMidi"))
-                        + " and " + noteName(number(constraint, "highestMidi")) + ".");
+                case "RangeConstraint" -> {
+                    if (constraint == ranges.get(0)) {
+                        int lowest = ranges.stream().mapToInt(c -> number(c, "lowestMidi")).max().getAsInt();
+                        int highest = ranges.stream().mapToInt(c -> number(c, "highestMidi")).min().getAsInt();
+                        notes.add("All notes stay between " + noteName(lowest) + " and " + noteName(highest) + ".");
+                    }
+                }
                 case "ContainsPattern" -> rhythm(constraint).ifPresent(abc -> notes.add("It practises the rhythm "
                         + abc + ", used at least " + Math.max(1, number(constraint, "minOccurrences")) + " times."));
                 case "ExcludesPattern" -> rhythm(constraint)
@@ -101,6 +110,10 @@ public class OllamaExerciseGenerator implements ExerciseGenerator {
                     // Rendering constraints do not concern the notes.
                 }
             }
+        }
+        // How demanding the exercise should be: each dimension of the quality model has its own wording.
+        for (EObject goal : children(spec, "qualityGoals")) {
+            hint(goal).ifPresent(notes::add);
         }
         for (Check check : ctx.rejected()) {
             switch (check.name()) {
@@ -118,6 +131,17 @@ public class OllamaExerciseGenerator implements ExerciseGenerator {
             text.append("\nTempo ").append(tempo);
         }
         return text.append("\nNotes ").append(String.join(" ", notes)).toString();
+    }
+
+    /** What the quality model tells the music model for the level of a goal, if it says anything. */
+    static java.util.Optional<String> hint(EObject goal) {
+        EStructuralFeature reference = goal.eClass().getEStructuralFeature("dimension");
+        if (reference == null || !(goal.eGet(reference) instanceof EObject dimension) || dimension.eIsProxy()) {
+            return java.util.Optional.empty();
+        }
+        String level = literal(goal, "level");
+        return children(dimension, "bands").stream().filter(band -> level != null && level.equals(literal(band, "level")))
+                .map(band -> text(band, "hint", "").strip()).filter(hint -> !hint.isEmpty()).findFirst();
     }
 
     /** The rhythmic pattern of a constraint, written as ABC on two neighbouring notes. */

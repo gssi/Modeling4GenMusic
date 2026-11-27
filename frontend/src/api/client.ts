@@ -7,6 +7,7 @@ import type {
   MetamodelDescriptor,
   MetamodelSummary,
   ModelDocument,
+  MetricInfo,
   ModelHeader,
   ModelLayout,
   ModelVersion,
@@ -69,15 +70,16 @@ export const api = {
   getMetamodel: (prefix: string) => request<MetamodelDescriptor>(url(`/metamodels/${prefix}`)),
 
   listModels: () => request<ModelHeader[]>(url('/models')),
-  createModel: (metamodel: string, name: string, role?: string) =>
-    request<ModelDocument>(url('/models'), json('POST', { metamodel, name, role })),
+  createModel: (metamodel: string, name: string, role?: string, folder?: string) =>
+    request<ModelDocument>(url('/models'), json('POST', { metamodel, name, role, folder })),
+  moveModel: (id: string, folder: string) => request<ModelHeader>(url(`${model(id)}/folder`), json('PUT', { folder })),
   getModel: (id: string) => request<ModelDocument>(url(model(id))),
   saveModel: (doc: ModelDocument) => request<ModelDocument>(url(model(doc.id)), json('PUT', doc)),
   deleteModel: (id: string) => request<void>(url(model(id)), { method: 'DELETE' }),
-  importModel: (file: File, role?: string) => {
+  importModel: (file: File, role?: string, folder?: string) => {
     const form = new FormData()
     form.append('file', file)
-    return request<ModelDocument>(url('/models/import', { role }), { method: 'POST', body: form })
+    return request<ModelDocument>(url('/models/import', { role, folder }), { method: 'POST', body: form })
   },
 
   getLayout: (id: string) => request<ModelLayout>(url(`${model(id)}/layout`)),
@@ -91,9 +93,11 @@ export const api = {
 
   xmiUrl: (id: string) => url(`${model(id)}/xmi`),
 
-  derive: (learnerModelId: string, teacherIntentModelId: string, qualityModelId: string) =>
-    request<DerivationResult>(url('/derivations'), json('POST', { learnerModelId, teacherIntentModelId, qualityModelId })),
+  /** The quality model is not named: the derivation follows the reference of the intent. */
+  derive: (learnerModelId: string, teacherIntentModelId: string) =>
+    request<DerivationResult>(url('/derivations'), json('POST', { learnerModelId, teacherIntentModelId })),
   listGenerators: () => request<GeneratorInfo[]>(url('/generations/generators')),
+  listMetrics: () => request<MetricInfo[]>(url('/generations/metrics')),
   generate: (specModelId: string, qualityModelId?: string, generator?: string) =>
     request<GenerationResult>(url('/generations'), json('POST', { specModelId, qualityModelId, generator })),
 

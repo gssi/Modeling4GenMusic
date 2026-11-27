@@ -1,4 +1,5 @@
-// Validation of a learner profile. Model L conforms to http://music/profile.
+// Validation of a learner profile. Model L conforms to http://music/profile;
+// model N is the catalog of need types the profile refers to (empty when there is none).
 
 context L!Learner {
 
@@ -12,6 +13,11 @@ context L!Learner {
     message: "L'estensione non è ordinata: la nota più bassa (" + self.lowestMidi
       + ") deve essere minore della più alta (" + self.highestMidi + ")"
   }
+
+  constraint CatalogForNeeds {
+    check: self.needs.isEmpty() or self.hasCatalog()
+    message: "Il profilo elenca dei bisogni ma non indica il catalogo che ne definisce i tipi"
+  }
 }
 
 context L!Skill {
@@ -23,15 +29,36 @@ context L!Skill {
   }
 }
 
-context L!HandSpanLimit {
+// A need says nothing by itself: its type, in the catalog, tells which values it takes.
+context L!Need {
 
-  constraint HandSpanBounds {
-    check: self.maxStretchSemitones >= 2 and self.maxStretchSemitones <= 24
-      and (not self.eIsSet(self.eClass().getEStructuralFeature("handSpanCm")) or self.handSpanCm > 0)
-    message: "Apertura della mano " + self.hand.handName() + " fuori scala: intervallo massimo "
-      + self.maxStretchSemitones + " semitoni (ammessi da 2 a 24)"
-      + (self.handSpanCm > 0 or not self.eIsSet(self.eClass().getEStructuralFeature("handSpanCm"))
-          ? "" : ", misura " + self.handSpanCm + " cm (deve essere maggiore di zero)")
+  constraint NeedTypeFromCatalog {
+    guard: self.eContainer().hasCatalog()
+    check: self.isTyped()
+    message: "Il bisogno non è di un tipo del catalogo «" + self.eContainer().catalog.name + "»"
+  }
+
+  constraint RequiredParameters {
+    guard: self.eContainer().hasCatalog() and self.isTyped()
+    check: self.missing().isEmpty()
+    message: self.type.caption() + ": manca " + self.missing().collect(p | p.caption()).concat(", ")
+  }
+}
+
+context L!Slot {
+
+  constraint SlotOfTheType {
+    guard: self.eContainer().eContainer().hasCatalog() and self.eContainer().isTyped()
+    check: self.isOfTheType()
+    message: self.eContainer().type.caption() + ": un valore non corrisponde a nessun parametro del tipo"
+  }
+
+  constraint SlotValue {
+    guard: self.eContainer().eContainer().hasCatalog() and self.eContainer().isTyped() and self.isOfTheType()
+      and self.value.isDefined() and self.value.trim().length() > 0
+    check: needs.problemOf(self.parameter, self.value).isUndefined()
+    message: self.eContainer().type.caption() + ", " + self.parameter.caption().firstToLowerCase() + ": "
+      + needs.problemOf(self.parameter, self.value)
   }
 }
 
@@ -43,6 +70,23 @@ context L!PatternMastery {
   }
 }
 
-operation Any handName() : String {
-  return self = L!Hand#LEFT ? "sinistra" : "destra";
+operation L!Learner hasCatalog() : Boolean {
+  return self.catalog.isDefined() and not self.catalog.eIsProxy();
+}
+
+operation L!Need isTyped() : Boolean {
+  return self.type.isDefined() and not self.type.eIsProxy() and self.type.eContainer() = self.eContainer().catalog;
+}
+
+operation L!Slot isOfTheType() : Boolean {
+  return self.parameter.isDefined() and self.eContainer().type.parameters.includes(self.parameter);
+}
+
+// Required parameters that have neither a value in the profile nor a default in the catalog.
+operation L!Need missing() : Sequence {
+  return self.type.parameters.select(p | p.required and needs.parameterValue(self, p).isUndefined()).asSequence();
+}
+
+operation Any caption() : String {
+  return self.label.isDefined() and self.label.trim().length() > 0 ? self.label : self.name;
 }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pr:Learner xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:pr="http://music/profile" xmi:id="anna" name="anna" comfortableBpm="96" lowestMidi="60" highestMidi="79">
+  <skills xmi:id="skill_rhythm" level="3" confidence="0.7"/>
+  <skills xmi:id="skill_pitch" area="PITCH_READING" level="3" confidence="0.7"/>
+  <catalog href="default.needs.xmi#needs"/>
+  <patterns xmi:id="pm_quarter" expression="4"/>
+  <patterns xmi:id="pm_half" expression="2"/>
+</pr:Learner>

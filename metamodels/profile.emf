@@ -1,6 +1,8 @@
 @namespace(uri="http://music/profile", prefix="pr")
 package profile;
 
+import "needs.ecore";
+
 class Learner {
   attr String[1] name;
   attr Instrument instrument;
@@ -8,6 +10,7 @@ class Learner {
   attr int lowestMidi;
   attr int highestMidi;
   val Skill[*] skills;
+  ref needs.NeedCatalog catalog;       // where the types of the needs below are defined
   val Need[*] needs;
   val PatternMastery[*] patterns;
 }
@@ -18,18 +21,16 @@ class Skill {
   attr double confidence;
 }
 
-abstract class Need {
+// A need of this learner: which type of the catalog it is and the value of each of its parameters.
+// What a need does to an exercise is written in its type, not here.
+class Need {
+  ref needs.NeedType[1] type;
+  val Slot[*] slots;
 }
 
-class LowVision extends Need {
-  attr double minStaffScale;
-}
-
-// Functional limit, not a diagnosis: how far the hand comfortably opens at the keyboard.
-class HandSpanLimit extends Need {
-  attr Hand[1] hand;
-  attr double handSpanCm;              // thumb to little finger, optional and informative only
-  attr int[1] maxStretchSemitones;     // widest interval covered comfortably (9 = major sixth)
+class Slot {
+  ref needs.ParameterDef[1] parameter;
+  attr String value;
 }
 
 class PatternMastery {

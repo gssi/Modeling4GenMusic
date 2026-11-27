@@ -1,0 +1,203 @@
+{
+  "case": "C5",
+  "staffScale": 1,
+  "requirements": [
+    {
+      "id": "C5-R1",
+      "kind": "key",
+      "text": "The exercise is in the key of C major.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Tonalità scelta dalla docente"
+      }
+    },
+    {
+      "id": "C5-R2",
+      "kind": "meter",
+      "text": "The exercise is in 4/4 time.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Metro scelto dalla docente"
+      }
+    },
+    {
+      "id": "C5-R3",
+      "kind": "bars",
+      "text": "The exercise is 8 bars long.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyIntent"
+        ],
+        "kind": "Refinement",
+        "rationale": "Numero di battute scelto dalla docente"
+      }
+    },
+    {
+      "id": "C5-R4",
+      "kind": "tempo",
+      "text": "The tempo is not faster than 72 beats per minute.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "TempoLimit"
+        ],
+        "kind": "Refinement",
+        "rationale": "Il tempo richiesto (72 bpm) è entro il tempo comodo"
+      }
+    },
+    {
+      "id": "C5-R5",
+      "kind": "containsPattern",
+      "text": "The rhythm eighth note + eighth note occurs at least once.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "StrengthenLearningPattern"
+        ],
+        "kind": "Refinement",
+        "rationale": "Il pattern '8 8' non risulta padroneggiato nel profilo: resta obbligatorio come richiesto"
+      },
+      "pattern": "8 8",
+      "minOccurrences": 1
+    },
+    {
+      "id": "C5-R6",
+      "kind": "range",
+      "text": "Every note lies between C4 and G5, both included.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "profile",
+        "label": "The learner profile",
+        "rules": [
+          "RangeFromLearner"
+        ],
+        "kind": "Derivation",
+        "rationale": "Estensione di luca: dalla nota MIDI 60 alla 79"
+      },
+      "lowestMidi": 60,
+      "highestMidi": 79
+    },
+    {
+      "id": "C5-R7",
+      "kind": "range",
+      "text": "Every note lies between C4 and G4, both included.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Five finger position",
+        "label": "The learner's need “Five finger position”",
+        "rules": [
+          "ApplyNeeds"
+        ],
+        "kind": "Derivation",
+        "rationale": "Posizione fissa della mano: le note restano tra la nota MIDI 60 e la 67"
+      },
+      "lowestMidi": 60,
+      "highestMidi": 67
+    },
+    {
+      "id": "C5-R8",
+      "kind": "handSpan",
+      "text": "No two notes played together by the right hand are further apart than 7 semitones (perfect fifth).",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Hand span limit",
+        "label": "The learner's need “Hand span limit”",
+        "rules": [
+          "ApplyNeeds"
+        ],
+        "kind": "Derivation",
+        "rationale": "Limite di apertura della mano destra: massimo 7 semitoni (quinta giusta)"
+      },
+      "semitones": 7
+    },
+    {
+      "id": "C5-R9",
+      "kind": "positionChanges",
+      "text": "No melodic leap between two consecutive notes is wider than 7 semitones (perfect fifth), so the right hand never has to change position.",
+      "enforced": true,
+      "strength": "required",
+      "origin": {
+        "source": "need",
+        "needType": "Hand span limit",
+        "label": "The learner's need “Hand span limit”",
+        "rules": [
+          "ApplyNeeds"
+        ],
+        "kind": "Derivation",
+        "rationale": "Limite di apertura della mano destra: massimo 7 semitoni (quinta giusta)"
+      },
+      "semitones": 7
+    },
+    {
+      "id": "C5-R10",
+      "kind": "qualityGoal",
+      "text": "Melodic complexity is low: “Move mostly by step”.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "teacher",
+        "label": "The teacher",
+        "rules": [
+          "CopyQualityGoals"
+        ],
+        "kind": "Refinement",
+        "rationale": "Obiettivo Complessità melodica LOW fissato dalla docente"
+      },
+      "dimension": "MelodicComplexity",
+      "level": "LOW",
+      "metric": "meanLeap",
+      "min": 0,
+      "max": 0.35
+    },
+    {
+      "id": "C5-R11",
+      "kind": "qualityGoal",
+      "text": "Rhythmic complexity is low: “Use mostly quarter notes and half notes”.",
+      "enforced": true,
+      "strength": "preferred",
+      "origin": {
+        "source": "qualityModel",
+        "label": "A default of the quality model",
+        "rules": [
+          "ApplyImplicitGoals"
+        ],
+        "kind": "Derivation",
+        "rationale": "La docente non indica un obiettivo per Complessità ritmica: vale il livello LOW previsto dal modello di qualità"
+      },
+      "dimension": "RhythmicComplexity",
+      "level": "LOW",
+      "metric": "shortNoteShare",
+      "min": 0,
+      "max": 0.3
+    }
+  ]
+}

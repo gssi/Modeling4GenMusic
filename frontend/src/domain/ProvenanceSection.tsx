@@ -17,7 +17,7 @@ export function ProvenanceSection({ links }: { links: LinkInfo[] }) {
           <p>{link.rationale}</p>
           {link.kind === 'ConflictFix' && (
             <p>
-              Valore richiesto {link.originalValue}, portato a {link.newValue}
+              Valore {link.originalValue} portato a {link.newValue}
               {link.critique && ` (${link.critique})`}.
             </p>
           )}

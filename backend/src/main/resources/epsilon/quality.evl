@@ -1,4 +1,41 @@
 // Validation of a quality model. Model Q conforms to http://music/quality.
+// A quality model is the catalog of the dimensions an exercise can be asked to be simple or
+// demanding along: each one says how it is measured and what its levels mean.
+
+context Q!QualityModel {
+
+  constraint UniqueDimensionNames {
+    check: self.dimensions.collect(d | d.name).asSet().size() = self.dimensions.size()
+    message: "Due dimensioni del modello di qualità hanno lo stesso nome"
+  }
+}
+
+context Q!QualityDimension {
+
+  critique BandCoverage {
+    check: self.coversUnitInterval()
+    message: "Le bande di " + self.caption() + " devono coprire [0, 1] senza buchi né sovrapposizioni"
+  }
+
+  // The metric is a measure the studio knows how to take on an exercise: a new one needs code.
+  constraint KnownMetric {
+    check: metrics.isKnown(self.metric)
+    message: self.caption() + ": la metrica «" + self.metric + "» non esiste. Quelle disponibili: "
+      + metrics.names().concat(", ")
+  }
+
+  constraint OneBandPerLevel {
+    check: self.bands.collect(b | b.level).asSet().size() = self.bands.size()
+    message: self.caption() + ": un livello ha più di una banda"
+  }
+
+  // A goal at a level without a band could not be resolved to thresholds.
+  critique DefaultLevelHasABand {
+    guard: self.implicit
+    check: self.bands.exists(b | b.level = self.defaultLevel)
+    message: self.caption() + ": il livello predefinito " + self.defaultLevel + " non ha una banda"
+  }
+}
 
 context Q!Band {
 
@@ -9,15 +46,11 @@ context Q!Band {
   }
 }
 
-context Q!MetricBinding {
-
-  critique BandCoverage {
-    check: self.coversUnitInterval()
-    message: "Le bande di " + self.attribute + " devono coprire [0, 1] senza buchi né sovrapposizioni"
-  }
+operation Q!QualityDimension caption() : String {
+  return self.label.isDefined() and self.label.trim().length() > 0 ? self.label : self.name;
 }
 
-operation Q!MetricBinding coversUnitInterval() : Boolean {
+operation Q!QualityDimension coversUnitInterval() : Boolean {
   var bands = self.bands.sortBy(b | b.min);
   if (bands.isEmpty()) { return false; }
   if (not same(bands.first().min, 0.0) or not same(bands.last().max, 1.0)) { return false; }

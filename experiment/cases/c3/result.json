@@ -1,0 +1,139 @@
+{
+  "case": "C3",
+  "intentWarnings": [
+    {
+      "rule": "NeedLimitExceeded",
+      "severity": "WARNING",
+      "message": "Attenzione breve: l'esercizio non supera 4 battute (richiesto: 8); Velocità motoria ridotta: il tempo non supera 60 bpm (richiesto: 100): la derivazione applicherà il limite di marco"
+    },
+    {
+      "rule": "TempoAboveComfort",
+      "severity": "WARNING",
+      "message": "Il tempo richiesto (100 bpm) supera il tempo comodo di marco (90 bpm)"
+    }
+  ],
+  "derivationDiagnostics": [
+    {
+      "id": "c3.intent#NeedLimitExceeded@intent",
+      "modelId": "c3.intent",
+      "elementId": "intent",
+      "severity": "WARNING",
+      "constraint": "NeedLimitExceeded",
+      "message": "Attenzione breve: l'esercizio non supera 4 battute (richiesto: 8); Velocità motoria ridotta: il tempo non supera 60 bpm (richiesto: 100): la derivazione applicherà il limite di marco",
+      "fixes": []
+    },
+    {
+      "id": "c3.intent#TempoAboveComfort@intent",
+      "modelId": "c3.intent",
+      "elementId": "intent",
+      "severity": "WARNING",
+      "constraint": "TempoAboveComfort",
+      "message": "Il tempo richiesto (100 bpm) supera il tempo comodo di marco (90 bpm)",
+      "fixes": [
+        {
+          "title": "Limita il tempo a 90 bpm"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "generator": "ollama",
+    "model": "hf.co/mradermacher/ChatMusician-GGUF:Q4_K_M",
+    "seed": 879728911,
+    "prompt": "Human: Using ABC notation, recreate the given text as a musical score.\nMeter 4/4\nKey C\nNote Length 1/8\nTempo 1/4=60\nNotes A 4 bar exercise for a beginner piano player. It practises the rhythm cB, used at least 1 times. All notes stay between C4 and C5. Use mostly quarter notes and half notes. Move mostly by step. </s> Assistant: X:1\nT:Esercizio\nL:1/8\nQ:1/4=60\nM:4/4\nK:C\n",
+    "seconds": 2.1,
+    "meter": "4/4",
+    "key": "C",
+    "tempo": "1/4=60",
+    "attempts": 1
+  },
+  "valid": true,
+  "report": {
+    "valid": true,
+    "checks": [
+      {
+        "name": "bars",
+        "passed": true,
+        "blocking": true,
+        "message": "Le battute sono 4, come richiesto"
+      },
+      {
+        "name": "barLength",
+        "passed": true,
+        "blocking": false,
+        "message": "Ogni battuta dura 4/4"
+      },
+      {
+        "name": "containsPattern",
+        "passed": true,
+        "blocking": true,
+        "message": "Il pattern '8 8' compare 2 volte (richieste almeno 1)"
+      },
+      {
+        "name": "range",
+        "passed": true,
+        "blocking": true,
+        "message": "Tutte le note sono nell'estensione MIDI 60–72"
+      },
+      {
+        "name": "qualityGoal",
+        "passed": false,
+        "blocking": false,
+        "message": "Complessità ritmica LOW: shortNoteShare vale 0.35, fuori da 0.0–0.3"
+      },
+      {
+        "name": "qualityGoal",
+        "passed": true,
+        "blocking": false,
+        "message": "Complessità melodica LOW: meanLeap vale 0.14, entro 0.0–0.35"
+      }
+    ]
+  },
+  "chosenAttempt": 1,
+  "attempts": [
+    {
+      "abc": "X:1\nT:Esercizio\nL:1/8\nQ:1/4=60\nM:4/4\nK:C\nE3 F G2 A2 | (GF) D2 C2 CC | E3 F G2 A2 | c4 c2 c2 |]\n",
+      "report": {
+        "valid": true,
+        "checks": [
+          {
+            "name": "bars",
+            "passed": true,
+            "blocking": true,
+            "message": "Le battute sono 4, come richiesto"
+          },
+          {
+            "name": "barLength",
+            "passed": true,
+            "blocking": false,
+            "message": "Ogni battuta dura 4/4"
+          },
+          {
+            "name": "containsPattern",
+            "passed": true,
+            "blocking": true,
+            "message": "Il pattern '8 8' compare 2 volte (richieste almeno 1)"
+          },
+          {
+            "name": "range",
+            "passed": true,
+            "blocking": true,
+            "message": "Tutte le note sono nell'estensione MIDI 60–72"
+          },
+          {
+            "name": "qualityGoal",
+            "passed": false,
+            "blocking": false,
+            "message": "Complessità ritmica LOW: shortNoteShare vale 0.35, fuori da 0.0–0.3"
+          },
+          {
+            "name": "qualityGoal",
+            "passed": true,
+            "blocking": false,
+            "message": "Complessità melodica LOW: meanLeap vale 0.14, entro 0.0–0.35"
+          }
+        ]
+      }
+    }
+  ]
+}

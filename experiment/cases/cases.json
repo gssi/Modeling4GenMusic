@@ -1,0 +1,32 @@
+[
+  {
+    "id": "C1",
+    "folder": "c1",
+    "title": "No special needs (control)",
+    "generated": true
+  },
+  {
+    "id": "C2",
+    "folder": "c2",
+    "title": "Low vision and limited hand span",
+    "generated": true
+  },
+  {
+    "id": "C3",
+    "folder": "c3",
+    "title": "Short attention span and reduced motor speed",
+    "generated": true
+  },
+  {
+    "id": "C4",
+    "folder": "c4",
+    "title": "Visual crowding",
+    "generated": true
+  },
+  {
+    "id": "C5",
+    "folder": "c5",
+    "title": "Fixed hand position and narrow hand span",
+    "generated": true
+  }
+]

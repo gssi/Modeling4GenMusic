@@ -92,7 +92,7 @@ test('validation rules can be read and searched', async ({ page }) => {
   await expect(tempo).toContainText('Avviso')
   await expect(tempo).toContainText('self.requestedBpm <= self.learner.comfortableBpm')
   await expect(tempo).toContainText('Correzione rapida')
-  await expect(page.getByRole('article', { name: 'HandSpanBounds' })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'SlotValue' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Regole di weaving.evl' })).toBeVisible()
 
   await page.getByLabel('Cerca tra le regole').fill('LeapBeyond')
@@ -116,7 +116,7 @@ test('a validation script is edited only when it parses and runs, and can go bac
   // a syntax error is reported with its line and blocks saving
   await text.fill(original.replace('critique TempoAboveComfort {', 'critique TempoAboveComfort'))
   await expect(page.getByText('C’è un errore di sintassi')).toBeVisible()
-  await expect(page.getByRole('button', { name: /^riga 7, colonna/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^riga 8, colonna/ })).toBeVisible()
   await expect(save).toBeDisabled()
 
   // right syntax but a property that does not exist: the trial run on the models finds it
@@ -144,7 +144,7 @@ test('the derivation script is shown with its rules and edited under the same ch
   await page.getByRole('button', { name: 'Regole', exact: true }).click()
   const section = page.getByRole('region', { name: 'Regole di derive.etl' })
   await expect(section.getByRole('article', { name: 'CopyIntent' })).toContainText('T!ExerciseSpec')
-  await expect(section.getByRole('article', { name: 'SpanFromHandLimit' })).toBeVisible()
+  await expect(section.getByRole('article', { name: 'ApplyNeeds' })).toBeVisible()
   await expect(section.getByRole('article', { name: 'TempoLimit' })).toContainText('dopo le regole')
 
   await page.getByRole('button', { name: 'Modifica derive.etl' }).click()
@@ -224,11 +224,49 @@ test('a described rule is proposed with what it would report, then inserted to b
   await expect(text).not.toHaveValue(/SlowLearner/)
   await assistant.getByRole('button', { name: 'Inserisci nel testo' }).click()
   await expect(text).toHaveValue(/\/\/ Avvisa se il tempo comodo è sotto i 40 bpm\ncontext L!Learner \{\n\n {2}critique SlowLearner/)
-  await expect(page.getByText(/Sintassi corretta e prova sui modelli del workspace riuscita: 6 regole/)).toBeVisible()
+  await expect(page.getByText(/Sintassi corretta e prova sui modelli del workspace riuscita: 10 regole/)).toBeVisible()
   await page.getByRole('button', { name: 'Salva le regole' }).click()
   await expect(page.getByRole('article', { name: 'SlowLearner' })).toContainText('Avviso')
 
   await page.getByRole('button', { name: 'Ripristina le regole originali di profile.evl' }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Ripristina' }).click()
   await expect(page.getByRole('article', { name: 'SlowLearner' })).toHaveCount(0)
+})
+
+test('models are collected in folders of the workspace', async ({ page }) => {
+  await page.goto('/')
+  const workspace = page.getByRole('navigation', { name: 'Modelli del workspace' })
+
+  // a model created with a folder shows inside it
+  await page.getByRole('button', { name: 'Nuovo modello di qualità', exact: true }).click()
+  await page.getByLabel('Nome').fill('Qualità in cartella')
+  await page.getByLabel('Cartella', { exact: true }).fill('Classe 3 / Pianoforte')
+  await page.getByRole('button', { name: 'Crea', exact: true }).click()
+  const outer = workspace.getByRole('region', { name: 'Cartella Classe 3', exact: true })
+  const inner = workspace.getByRole('region', { name: 'Cartella Classe 3/Pianoforte' })
+  await expect(inner.getByRole('button', { name: 'Qualità in cartella', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Cartella del modello')).toHaveValue('Classe 3/Pianoforte')
+
+  // moving it needs no saving: the content of the model is not touched
+  await page.getByLabel('Cartella del modello').fill('Archivio')
+  await page.getByLabel('Cartella del modello').press('Enter')
+  const archive = workspace.getByRole('region', { name: 'Cartella Archivio' })
+  await expect(archive.getByRole('button', { name: 'Qualità in cartella', exact: true })).toBeVisible()
+  await expect(outer).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Salva', exact: true })).toBeDisabled()
+
+  // a closed folder stays closed after a reload
+  await archive.getByRole('button', { name: /^▾?\s*Archivio/ }).click()
+  await expect(archive.getByRole('button', { name: 'Qualità in cartella', exact: true })).toHaveCount(0)
+  await page.reload()
+  await expect(workspace.getByRole('region', { name: 'Cartella Archivio' }).getByRole('button', { expanded: false })).toBeVisible()
+  await workspace.getByRole('region', { name: 'Cartella Archivio' }).getByRole('button', { expanded: false }).click()
+  await page.screenshot({ path: 'test-results/folders.png' })
+
+  // out of every folder, the model is back at the top
+  await workspace.getByRole('button', { name: 'Qualità in cartella', exact: true }).click()
+  await page.getByLabel('Cartella del modello').fill('')
+  await page.getByLabel('Cartella del modello').press('Enter')
+  await expect(workspace.getByRole('region', { name: 'Cartella Archivio' })).toHaveCount(0)
+  await expect(workspace.getByRole('button', { name: 'Qualità in cartella', exact: true })).toBeVisible()
 })

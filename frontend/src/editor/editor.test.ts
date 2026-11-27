@@ -21,15 +21,15 @@ const object = (roots: typeof giuliaIntent, id: string) => locate(roots, id)!.ob
 
 describe('metamodel rules', () => {
   it('accepts subclasses and any class where EObject is expected', () => {
-    const lowVision = { metamodel: PROFILE, name: 'LowVision' }
-    expect(conformsTo(metamodels, lowVision, { metamodel: PROFILE, name: 'Need' })).toBe(true)
-    expect(conformsTo(metamodels, lowVision, { metamodel: PROFILE, name: 'Skill' })).toBe(false)
-    expect(conformsTo(metamodels, lowVision, { metamodel: 'http://www.eclipse.org/emf/2002/Ecore', name: 'EObject' })).toBe(true)
+    const contains = { metamodel: EXERCISE, name: 'ContainsPattern' }
+    expect(conformsTo(metamodels, contains, { metamodel: EXERCISE, name: 'Constraint' })).toBe(true)
+    expect(conformsTo(metamodels, contains, { metamodel: EXERCISE, name: 'Pattern' })).toBe(false)
+    expect(conformsTo(metamodels, contains, { metamodel: 'http://www.eclipse.org/emf/2002/Ecore', name: 'EObject' })).toBe(true)
   })
 
   it('lets only uncontained classes be roots', () => {
     expect(canBeRoot(metamodels, profile, 'Learner')).toBe(true)
-    expect(canBeRoot(metamodels, profile, 'LowVision')).toBe(false)
+    expect(canBeRoot(metamodels, profile, 'Need')).toBe(false)
     expect(canBeRoot(metamodels, exercise, 'Pattern')).toBe(false)
   })
 
@@ -94,7 +94,7 @@ describe('typed connections', () => {
   })
 
   it('finds the containers with room for a new object', () => {
-    expect(containerSlots(metamodels, PROFILE, giuliaProfile, 'LowVision').map((s) => `${s.parent.id}.${s.reference.name}`)).toEqual(['giulia.needs'])
+    expect(containerSlots(metamodels, PROFILE, giuliaProfile, 'Need').map((s) => `${s.parent.id}.${s.reference.name}`)).toEqual(['giulia.needs'])
     // c1 already has its single pattern, c2 has none
     expect(containerSlots(metamodels, EXERCISE, giuliaIntent, 'Pattern').map((s) => s.parent.id)).toEqual(['c2'])
     expect(containerSlots(metamodels, PROFILE, [], 'Skill')).toEqual([])

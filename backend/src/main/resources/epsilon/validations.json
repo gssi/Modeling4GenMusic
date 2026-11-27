@@ -5,33 +5,68 @@
     "model": "L",
     "tools": {
       "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool",
-      "intervals": "org.modeling4genmusic.studio.interval.IntervalTool"
-    }
+      "intervals": "org.modeling4genmusic.studio.interval.IntervalTool",
+      "needs": "org.modeling4genmusic.studio.needs.NeedTool"
+    },
+    "related": [
+      {
+        "alias": "N",
+        "metamodel": "http://music/needs",
+        "reference": "catalog"
+      }
+    ]
   },
   {
     "metamodel": "http://music/exercise",
-    "exceptRoles": ["derived"],
+    "exceptRoles": [
+      "derived"
+    ],
     "script": "intent.evl",
     "model": "T",
     "tools": {
       "rhythm": "org.modeling4genmusic.studio.rhythm.RhythmTool",
-      "intervals": "org.modeling4genmusic.studio.interval.IntervalTool"
+      "intervals": "org.modeling4genmusic.studio.interval.IntervalTool",
+      "needs": "org.modeling4genmusic.studio.needs.NeedTool"
     },
     "related": [
-      { "alias": "L", "metamodel": "http://music/profile", "reference": "learner" }
+      {
+        "alias": "L",
+        "metamodel": "http://music/profile",
+        "reference": "learner"
+      },
+      {
+        "alias": "Q",
+        "metamodel": "http://music/quality",
+        "reference": "qualityModel"
+      }
     ]
   },
   {
     "metamodel": "http://music/quality",
     "script": "quality.evl",
-    "model": "Q"
+    "model": "Q",
+    "tools": {
+      "metrics": "org.modeling4genmusic.studio.generation.MetricTool"
+    }
   },
   {
     "metamodel": "http://music/weaving",
     "script": "weaving.evl",
     "model": "W",
     "related": [
-      { "alias": "S", "metamodel": "http://music/exercise", "reference": "derivedSpec" }
+      {
+        "alias": "S",
+        "metamodel": "http://music/exercise",
+        "reference": "derivedSpec"
+      }
     ]
+  },
+  {
+    "metamodel": "http://music/needs",
+    "script": "needs.evl",
+    "model": "N",
+    "tools": {
+      "needs": "org.modeling4genmusic.studio.needs.NeedTool"
+    }
   }
 ]

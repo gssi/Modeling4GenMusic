@@ -8,6 +8,7 @@ import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -96,7 +97,7 @@ class OllamaGenerationTest {
 
     @BeforeAll
     static void deriveGiulia(@Autowired MockMvc mvc) throws Exception {
-        for (String file : new String[] { "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
+        for (String file : new String[] { "default.needs.xmi", "giulia.profile.xmi", "giulia.intent.xmi", "piano.quality.xmi" }) {
             byte[] bytes = Files.readAllBytes(Path.of("../fixtures/giulia", file));
             mvc.perform(multipart("/api/models/import").file(new MockMultipartFile("file", file, "text/xml", bytes))
                     .param("role", file.contains("intent") ? "intent" : "")).andExpect(status().isCreated());
@@ -124,6 +125,8 @@ class OllamaGenerationTest {
         generate("ollama").andExpect(status().isOk()).andExpect(jsonPath("$.report.valid").value(true))
                 .andExpect(jsonPath("$.metadata.generator").value("ollama"))
                 .andExpect(jsonPath("$.metadata.model").value(MODEL))
+                // what was asked is kept with the answer, to tell later what the model was given
+                .andExpect(jsonPath("$.metadata.prompt", containsString("All notes stay between C4 and G5.")))
                 .andExpect(jsonPath("$.metadata.attempts").value(1)).andExpect(jsonPath("$.attempts", hasSize(1)))
                 .andExpect(jsonPath("$.abc", containsString("M:4/4\nK:G\nG2 B2 d2 B2 |")))
                 .andExpect(jsonPath("$.abc", containsString("Q:1/4=72")));
@@ -134,6 +137,8 @@ class OllamaGenerationTest {
                 .contains("All notes stay between C4 and G5.")
                 .contains("It practises the rhythm c>B, used at least 3 times.")
                 .contains("It never uses the rhythm c<B.")
+                // the quality goals, in the words the quality model gives for their level
+                .contains("Mix quarter notes with eighth notes.").contains("Move mostly by step.")
                 // the header is written for the model, which only continues with the notes
                 .endsWith(" </s> Assistant: X:1\nT:Esercizio\nL:1/8\nQ:1/4=72\nM:4/4\nK:G\n");
     }
@@ -195,6 +200,25 @@ class OllamaGenerationTest {
 
         generate("nope").andExpect(status().isBadRequest());
         generate("mock").andExpect(status().isOk()).andExpect(jsonPath("$.metadata.attempts").value(1));
+    }
+
+    @Test
+    void severalRangesAreToldAsTheOneTheyAllAllow() throws Exception {
+        mvc.perform(post("/api/models").contentType(MediaType.APPLICATION_JSON).content("""
+                {"metamodel":"http://music/exercise","name":"Two ranges","role":"derived"}"""))
+                .andExpect(status().isCreated());
+        mvc.perform(put("/api/models/two-ranges").contentType(MediaType.APPLICATION_JSON).content("""
+                {"version":1,"roots":[{"id":"spec","eClass":"ExerciseSpec",
+                  "attributes":{"key":"C","meter":"4/4","bars":4},
+                  "contents":{"constraints":[
+                    {"id":"r1","eClass":"RangeConstraint","attributes":{"lowestMidi":60,"highestMidi":79}},
+                    {"id":"r2","eClass":"RangeConstraint","attributes":{"lowestMidi":55,"highestMidi":67}}]}}]}"""))
+                .andExpect(status().isOk());
+        answers.add("C2 D2 E2 F2 | G4 E4 | D2 E2 F2 G2 | C8 |]");
+        mvc.perform(post("/api/generations").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"specModelId\":\"two-ranges\",\"generator\":\"ollama\"}")).andExpect(status().isOk());
+        assertThat(prompts.get(0)).contains("All notes stay between C4 and G4.").doesNotContain("G5")
+                .containsOnlyOnce("All notes stay between");
     }
 
     @Test

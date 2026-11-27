@@ -13,8 +13,9 @@ import org.modeling4genmusic.studio.rhythm.RhythmPattern;
 import org.springframework.stereotype.Component;
 
 /**
- * Checks that need no metric: number of bars, pitch range, occurrences of required and excluded
- * rhythm patterns. Quality goals are not verified: they wait for a {@link MetricCalculator}.
+ * Checks of an exercise against its spec: number of bars, pitch range, occurrences of required and
+ * excluded rhythm patterns, hand span, and the quality goals, each measured with the metric of its
+ * dimension ({@link Metrics}). A quality goal is a remark, never a blocking failure.
  * <p>
  * A rhythm pattern occurs where its durations appear on consecutive notes of the same bar.
  */
@@ -54,7 +55,44 @@ public class BasicExerciseValidator implements ExerciseValidator {
                 }
             }
         }
+        for (EObject goal : children(exerciseSpec, "qualityGoals")) {
+            qualityGoal(tune, goal).ifPresent(checks::add);
+        }
         return ValidationReport.of(checks);
+    }
+
+    /** Name of the checks on quality goals, which only say how close the exercise is to what was asked. */
+    public static final String QUALITY_GOAL = "qualityGoal";
+
+    /**
+     * Measures the exercise with the metric of the goal's dimension and compares it with the band of
+     * the level asked. Nothing is reported for a goal whose dimension cannot be read.
+     */
+    private static Optional<Check> qualityGoal(AbcTune tune, EObject goal) {
+        if (!(get(goal, "dimension") instanceof EObject dimension) || dimension.eIsProxy()) {
+            return Optional.empty();
+        }
+        String level = literal(goal, "level");
+        String label = get(dimension, "label") instanceof String text && !text.isBlank() ? text
+                : String.valueOf(get(dimension, "name"));
+        String name = String.valueOf(get(dimension, "metric"));
+        Optional<Metrics.Metric> metric = Metrics.byName(name);
+        if (metric.isEmpty()) {
+            return Optional.of(new Check(QUALITY_GOAL, false, false,
+                    label + " " + level + ": la metrica «" + name + "» non è conosciuta, l'obiettivo non è stato misurato"));
+        }
+        EObject band = children(dimension, "bands").stream().filter(b -> level != null && level.equals(literal(b, "level")))
+                .findFirst().orElse(null);
+        double value = Math.round(metric.get().of(tune) * 100) / 100.0;
+        if (band == null) {
+            return Optional.of(new Check(QUALITY_GOAL, false, false, label + " " + level + ": " + name + " vale "
+                    + value + ", ma il modello di qualità non dice che cosa significa " + level));
+        }
+        double min = ((Number) get(band, "min")).doubleValue();
+        double max = ((Number) get(band, "max")).doubleValue();
+        boolean inside = value >= min - 1e-9 && value <= max + 1e-9;
+        return Optional.of(new Check(QUALITY_GOAL, inside, false, label + " " + level + ": " + name + " vale " + value
+                + (inside ? ", entro " : ", fuori da ") + min + "–" + max));
     }
 
     /**

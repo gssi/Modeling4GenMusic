@@ -4,20 +4,30 @@
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="instrument">
       <eType href="profile.ecore#//Instrument" xsi:type="ecore:EEnum"/>
     </eStructuralFeatures>
-    <eStructuralFeatures xsi:type="ecore:EReference" name="bindings" eType="#//MetricBinding" upperBound="-1" containment="true"/>
+    <eStructuralFeatures xsi:type="ecore:EReference" name="dimensions" eType="#//QualityDimension" upperBound="-1" containment="true"/>
   </eClassifiers>
-  <eClassifiers xsi:type="ecore:EClass" name="MetricBinding">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="attribute">
-      <eType href="exercise.ecore#//QualityAttribute" xsi:type="ecore:EEnum"/>
+  <eClassifiers xsi:type="ecore:EClass" name="QualityDimension">
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="name" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" lowerBound="1"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="label" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="description" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="metric" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString" lowerBound="1"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="skillLimited" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="skillArea">
+      <eType href="profile.ecore#//SkillArea" xsi:type="ecore:EEnum"/>
     </eStructuralFeatures>
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="metric" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="implicit" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EBoolean"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="defaultLevel" eType="#//Level"/>
     <eStructuralFeatures xsi:type="ecore:EReference" name="bands" eType="#//Band" upperBound="-1" containment="true"/>
   </eClassifiers>
   <eClassifiers xsi:type="ecore:EClass" name="Band">
-    <eStructuralFeatures xsi:type="ecore:EAttribute" name="level">
-      <eType href="exercise.ecore#//Level" xsi:type="ecore:EEnum"/>
-    </eStructuralFeatures>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="level" eType="#//Level"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="min" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
     <eStructuralFeatures xsi:type="ecore:EAttribute" name="max" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EDouble"/>
+    <eStructuralFeatures xsi:type="ecore:EAttribute" name="hint" eType="ecore:EDataType http://www.eclipse.org/emf/2002/Ecore#//EString"/>
+  </eClassifiers>
+  <eClassifiers xsi:type="ecore:EEnum" name="Level">
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="LOW"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="MEDIUM" value="1"/>
+    <eLiterals xsi:type="ecore:EEnumLiteral" name="HIGH" value="2"/>
   </eClassifiers>
 </ecore:EPackage>
